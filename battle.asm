@@ -212,6 +212,82 @@ _ret:
 endp
 
 
+; startx 
+; startY
+; length/size
+; color
+proc DrawX
+	startX equ [bp+10]
+	startY equ [bp+8]
+	xLen equ [bp+6]
+	color equ [bp+4]
+	
+	
+	push bp
+	mov bp, sp
+	push cx
+	push dx
+	push bx
+	mov bx, 0
+	mov cx, startX
+	mov dx, startY
+
+diag1_loop:
+	push color 
+	call DrawPixel
+	
+	inc cx
+	inc dx
+	
+	inc bx
+	cmp bx, xLen
+	jne diag1_loop
+
+	mov cx, startX
+	add cx, xLen
+	dec cx
+	mov dx, startY
+	mov bx, 0
+	
+diag2_loop:
+	push color
+	call DrawPixel
+	dec cx
+	inc dx
+	inc bx
+	cmp bx, xLen
+	jne diag2_loop
+	
+
+	pop bx
+	pop dx
+	pop cx
+	pop bp
+	ret 8
+endp
+
+proc MouseLoop
+
+Mloop:
+	mov ax, 3
+	int 33h
+	
+	cmp bx, 1
+	jne Mloop
+	shr cx, 1
+	mov ax, 2
+	int 33h
+	push cx
+	push dx
+	push 5
+	push [color_cyan]
+	call DrawX
+	mov ax, 1
+	int 33h
+	ret
+
+endp
+
 
 start:
 	mov ax, @data
@@ -227,22 +303,34 @@ start:
 	; param 4 - startY
 	; param 5 - endY
 	; param 6 - color
-	push 5
-	push 165
-	push 316
-	push 20
-	push 170
-	push [color_cyan]
-	call DrawGrid
+	;push 5
+	;push 165
+	;push 316
+	;push 20
+	;push 170
+	;push [color_cyan]
+	;call DrawGrid
+;	;
+;	push 5
+;	push 4
+;	push 155
+;	push 20
+;	push 170
+;	push [color_red]
+;	call DrawGrid
 	
-	push 5
-	push 4
-	push 155
-	push 20
-	push 170
-	push [color_red]
-	call DrawGrid
 	
+	mov ax, 0
+	int 33h
+	
+	mov ax, 1
+	int 33h
+_m:
+	call MouseLoop
+	mov ah, 1
+	
+	jmp _m
+
 	call WaitKey
 	
 	push 0h

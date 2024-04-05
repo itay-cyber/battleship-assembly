@@ -18,9 +18,13 @@ color_gray dw 8
 color_bright_pink dw 37
 color_pink dw 38
 
+pblock_length dw 10
+half_pblock_length dw 5
+
 ; VARS ;
 g_vdist dw ?
 g_hdist dw ?
+
 
 ;  STRINGS ;
 kte_msg db "Press any key to exit...", 13, 10, '$'
@@ -327,7 +331,8 @@ endp
 
 ; param 1 : startX
 ; param 2 : startY
-proc DrawPinkBlock
+; block = 12 x 7
+proc _DrawSingularPinkBlock
     startX equ [bp+6]
     startY equ [bp+4]
     push bp
@@ -339,7 +344,7 @@ proc DrawPinkBlock
     mov cx, 2
     mov ax, startX
     mov bx, startY
-    add ax, 12
+    add ax, [pblock_length]
 _outside_block:  
 
     push startX
@@ -362,7 +367,8 @@ _outside_block:
     mov dx, startY
     add dx, 6
 
-    mov bx, 5 
+    mov bx, [half_pblock_length]
+	dec bx
 _middle_chain1:
     push [color_bright_pink]
     call DrawPixel
@@ -373,7 +379,7 @@ _middle_chain1:
     dec bx
     jnz _middle_chain1
 
-    mov bx, 6
+    mov bx, [half_pblock_length]
 _middle_chain2:
     push [color_bright_pink]
     call DrawPixel
@@ -384,12 +390,177 @@ _middle_chain2:
     dec bx
     jnz _middle_chain2
 
-
-    pop ax
-    pop bx
     pop cx
+	pop bx
+	pop ax
     pop bp    
     ret 4
+endp
+
+; param 1: n
+proc DrawPinkBlockNTimes
+	startX equ [bp+8]
+	startY equ [bp+6]
+	n_times equ [bp+4]
+	push bp
+	mov bp, sp
+	push ax 
+	push bx
+	push cx
+	
+	mov cx, n_times
+	mov ax, startX
+	mov bx, startY
+_draw_n_times_loop:
+	push ax
+	push bx
+	call _DrawSingularPinkBlock 	
+	add ax, [pblock_length]
+	
+	loop _draw_n_times_loop
+
+	pop cx
+	pop bx
+	pop ax
+	pop bp	
+	ret	6
+endp
+
+; param 1: startX
+; param 2: startY
+; param 3: height
+; param 4: number of steps
+proc DrawLadder
+	startX equ [bp+10]
+	startY equ [bp+8]
+	ladder_height equ [bp+6]
+	n_steps equ [bp+4]
+
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+	
+	; vertical lines
+	mov ax, startY
+	mov bx, ax
+	add bx, ladder_height
+	mov dx, startX
+	mov cx, 2
+_ladder_outline:
+	push ax
+	push bx
+	push dx
+	push [color_cyan]
+	call DrawVert 
+	add dx, 9
+	loop _ladder_outline
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+
+	ret 8
+endp
+
+
+proc DrawMap
+	push ax
+	push bx
+	push cx
+	push dx
+	
+	; line of blocks - y180
+	push 0
+	push 190
+	push 18
+	call DrawPinkBlockNTimes
+	
+	; first staircase
+	mov cx, 7
+	mov ax, 180
+	mov bx, 189
+_first_staircase:
+	push ax
+	push bx
+	push 2
+	call DrawPinkBlockNTimes
+	sub bx, 1
+	add ax, [pblock_length]
+	add ax, [pblock_length]
+	loop _first_staircase
+
+	; second staircase
+	mov cx, 15
+	mov ax, 280
+	mov bx, 154
+_second_staircase:
+	push ax
+	push bx
+	push 2
+	call DRAWPINKBLOCKNTIMES
+	sub bx, 1
+	sub ax, [pblock_length]
+	sub ax, [pblock_length]
+	loop _second_staircase
+
+	; third staircase
+	mov cx, 15
+	mov ax, 20
+	mov bx, 111
+_third_staircase:
+	push ax
+	push bx
+	push 2
+	call DRAWPINKBLOCKNTIMES
+	sub bx, 1
+	add ax, [pblock_length]
+	add ax, [pblock_length]
+	loop _third_staircase
+	
+	; final layer
+	; line of blocks
+	push 0
+	push 64
+	push 22
+	call DRAWPINKBLOCKNTIMES
+
+	mov cx, 4
+	mov ax, 280
+	mov bx, 68
+_fourth_staircase:
+	push ax
+	push bx
+	push 2
+	call DRAWPINKBLOCKNTIMES
+	dec bx
+	sub ax, [pblock_length]
+	sub ax, [pblock_length]
+	loop _fourth_staircase
+
+	; princess tower
+
+	push 150
+	push 33
+	push 6
+	call DRAWPINKBLOCKNTIMES
+_ladders:
+	; ladders
+	push 270
+	push 162
+	push 23
+	push 2
+	call DRAWLADDER
+
+	pop dx
+	pop cx   
+	pop bx
+	pop ax
+	ret
 endp
 
 
@@ -400,9 +571,7 @@ start:
 	push 1h
 	call SetMode
 
-    push 160
-    push 100
-    call DrawPinkBlock 
+    call DrawMap
 
 	call WaitKey
 	push 0h

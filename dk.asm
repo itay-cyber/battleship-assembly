@@ -24,7 +24,8 @@ half_pblock_length dw 5
 ; VARS ;
 g_vdist dw ?
 g_hdist dw ?
-
+ladder_stepdist dw ?
+ladder_final_stepdist dw 2
 
 ;  STRINGS ;
 kte_msg db "Press any key to exit...", 13, 10, '$'
@@ -331,7 +332,7 @@ endp
 
 ; param 1 : startX
 ; param 2 : startY
-; block = 12 x 7
+; block = 10 x 8
 proc _DrawSingularPinkBlock
     startX equ [bp+6]
     startY equ [bp+4]
@@ -443,6 +444,13 @@ proc DrawLadder
 	push cx
 	push dx
 	
+	; ladder step distance calculation
+	mov ax, ladder_height
+	mov bx, n_steps
+	xor dx, dx
+	div bx
+	mov [ladder_stepdist], ax
+	
 	; vertical lines
 	mov ax, startY
 	mov bx, ax
@@ -457,6 +465,23 @@ _ladder_outline:
 	call DrawVert 
 	add dx, 9
 	loop _ladder_outline
+
+	mov cx, n_steps
+	mov ax, startX
+	mov bx, ax
+	add bx, 9
+	mov dx, startY
+	add dx, [ladder_final_stepdist]
+	
+	
+_ladder_steps:
+	push ax
+	push bx
+	push dx
+	push [color_cyan]
+	call DRAWHORIZ
+	add dx, [ladder_stepdist]
+	loop _ladder_steps
 
 	pop dx
 	pop cx
@@ -549,13 +574,53 @@ _fourth_staircase:
 	push 6
 	call DRAWPINKBLOCKNTIMES
 _ladders:
-	; ladders
+	;ladders
+	; first layer ladder 1
+	mov [ladder_final_stepdist], 3
 	push 270
-	push 162
+	push 162	
 	push 23
-	push 2
+	push 4
 	call DRAWLADDER
 
+	; second layer ladder left
+	mov [ladder_final_stepdist], 3
+	push 120 ; 7 blocks from left 20 x 7 = 140px
+	push 115
+	push 31
+	push 5
+	call DrawLadder
+	
+	; second layer ladder right
+	mov [ladder_final_stepdist], 3
+	push 40 ; three blocks from left 20 x 3 = 60px
+	push 119
+	push 23
+	push 4
+	call DrawLadder
+	
+	; third layer ladder right	
+	push 240
+	push 75
+	push 26
+	push 4
+	call DrawLadder
+	
+	; third layer broken ladder
+	; top half
+	push 160
+	push 73
+	push 7
+	push 1
+	call DrawLadder
+	
+	; bottom half
+	mov [ladder_final_stepdist], 3
+	push 160
+	push 93
+	push 11
+	push 2
+	call DrawLadder
 	pop dx
 	pop cx   
 	pop bx

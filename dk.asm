@@ -8,6 +8,30 @@ STACK 200h
 	
 DATASEG
 
+; MACROS ;
+ma_black equ 00h
+ma_red equ 04h
+ma_green equ 02h
+ma_blue equ 01h
+ma_row_end equ 0FFh
+ma_sp_end equ 0FDh
+ma_nopx equ 0FEh
+ma_mario_skin equ 66d
+ma_mario_hair equ 6d
+ma_yellow equ 44d
+ma_boots equ ma_blue
+
+TRUE equ 1
+FALSE equ 0
+
+ESCKEY equ 1
+
+DKEY_PRESSED equ 20h
+DKEY_RELEASED equ 0A0h
+
+AKEY_PRESSED equ 1E
+AKEY_RELEASED equ 9E
+
 ; CONSTANTS ;
 color_white dw 000Fh
 color_green dw 000Ah
@@ -27,8 +51,87 @@ g_hdist dw ?
 ladder_stepdist dw ?
 ladder_final_stepdist dw 2
 
+mario_x dw ?
+mario_y dw ?
+save_key db 0
+
+can_draw db 1
+
 ;  STRINGS ;
 kte_msg db "Press any key to exit...", 13, 10, '$'
+msg1 db 'Start', '$'
+msg2 db 'Stop', '$'
+
+
+; SPRITES ;
+smario \
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \ ; 4 empty
+    	ma_red, ma_red, ma_red, ma_red, ma_red,\ ; top of hat
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end ; 4 empty
+	;2
+	db ma_nopx, ma_nopx, \ ; 2 empty
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \ ; bottom of hat
+	   ma_nopx, ma_row_end ; 1 empty
+	;3
+	db ma_nopx, ma_nopx, \ ; 2 mt
+		ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_black, ma_mario_skin, \ ; hair + skin + eyes
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end ; 3 mt
+	;4
+	db ma_nopx, \ ; 1 mt
+		ma_mario_hair, ma_mario_skin, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_black, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_row_end
+	;5
+	db ma_nopx, \ 
+		ma_mario_hair, ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_row_end
+	;6
+	db ma_nopx, \
+		ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, \
+	   ma_nopx, ma_row_end
+	; 7
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 8
+	db ma_nopx, ma_nopx, \
+		ma_blue, ma_blue, ma_red, ma_blue, ma_blue, ma_blue, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;9
+	db ma_nopx,\
+		ma_blue, ma_blue, ma_blue, ma_red, ma_blue, ma_blue, ma_red, ma_blue, ma_blue, ma_blue, \
+	   ma_nopx, ma_row_end
+	;10
+	db ma_blue, ma_blue, ma_blue, ma_blue, ma_red, ma_blue, ma_blue, ma_red, ma_blue, ma_blue, ma_blue, ma_blue,\
+		ma_row_end
+	;11
+	db ma_mario_skin, ma_mario_skin, ma_blue, ma_blue, ma_red, ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_mario_skin, ma_mario_skin,\
+		ma_row_end
+	;12
+	db ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_yellow, ma_red, ma_red, ma_yellow, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+		ma_row_end
+	;13
+	db ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, \
+		ma_row_end
+	;14
+	db ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, \
+	    ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 15
+	db ma_nopx, \
+		ma_boots, ma_boots, ma_boots, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx,\
+	    ma_boots, ma_boots, ma_boots, \
+	   ma_nopx, ma_row_end
+	;16
+	db ma_boots, ma_boots, ma_boots, ma_boots, \
+		ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	   ma_boots, ma_boots, ma_boots, ma_boots, ma_row_end
+	db ma_sp_end
+	
+	saved_pixels dd 500 dup(0) ; double word arr - store pixel x y value and color
+	saved_pixels_index dw 0
 
 CODESEG
 
@@ -53,79 +156,6 @@ proc PrintString
 
 endp
 
-
-; param 1 - grid size
-; param 2 - startX
-; param 3 - endX
-; param 4 - startY
-; param 5 - endY
-; param 6 - color
-proc DrawGrid
-	grid_size equ [bp+14]
-	startX equ [bp+12]
-	endX equ [bp+10]
-	startY equ [bp+8]
-	endY equ [bp+6]
-	color equ [bp+4]
-
-	push bp
-	mov bp, sp
-	push ax
-	push bx
-	push cx
-	push dx
-	
-	mov ax, endX
-	sub ax, startX
-	mov bx, grid_size
-	xor dx, dx
-	div bx
-	mov [g_hdist], ax
-	
-	mov ax, endY
-	sub ax, startY
-	mov bx, grid_size
-	xor dx, dx
-	div bx
-	mov [g_vdist], ax
-
-	
-	; draw horiz line
-	push startX ; startX
-	push endX ; endX
-	push startY ; startY
-	push color
-	call DrawHoriz
-	mov ax, startX
-	mov bx, startY
-	mov cx, grid_size
-	inc cx
-	
-	
-	
-grid_loop:
-	push startY
-	push endY
-	push ax
-	push color
-	call DrawVert
-	add ax, [g_hdist]
-	
-	push startX
-	push endX
-	push bx
-	push color
-	call DrawHoriz
-	add bx, [g_vdist]
-	loop grid_loop
-	
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	pop bp
-	ret 12
-endp 
 
 ; param 1 -  line startX
 ; param 2 - line endX
@@ -194,6 +224,47 @@ vline_drawn:
 endp
 
 
+; save pixel 
+; param 1: pixel x value
+; param 2: pixel y value
+; param 3: pixel color
+proc SavePixel 
+	pix_x equ [bp+8]
+	pix_y equ [bp+6]
+	pix_color equ [bp+4]
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+
+	lea si, [saved_pixels]
+	mov ax, [saved_pixels_index]
+	mov bx, 5
+	xor dx, dx ; clear dx
+	mul bx
+	add si, ax
+
+    mov ax, pix_x
+	mov [word ptr si], ax
+	add si, 2
+    mov ax, pix_y
+	mov [word ptr si], ax
+    add si, 2
+    mov al, pix_color
+	mov [byte ptr si], al
+
+	inc [saved_pixels_index]
+
+	
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 6
+endp
 
 
 ; param 1 - color
@@ -216,6 +287,84 @@ proc DrawPixel
 	pop bp
 	ret 2
 endp
+
+
+; param 1: sprite matrix ds:offset
+; param 2: startX
+; param 3: startY 
+proc DrawSprite
+    matrix_of equ [bp+8]
+    startX equ [bp+6]
+    startY equ [bp+4]
+    push bp
+    mov bp, sp
+    push ax
+    push bx
+    push cx
+    push dx
+    
+    mov cx, startX
+    mov dx, startY
+    mov si, matrix_of
+draw_loop:
+    cmp [byte ptr si], ma_sp_end ; check for sprite end
+    je draw_loop_end
+    cmp [byte ptr si], ma_row_end ; check for row end
+    je lrow_end
+
+    cmp [byte ptr si], ma_nopx ; check for empty pixel
+    je no_px
+    push [word ptr si] ; draw pixel
+    call DrawPixel
+    
+	
+
+no_px:
+    inc cx  
+    inc si
+    jmp draw_loop
+
+lrow_end:
+    mov cx, startX
+    inc dx
+    inc si
+    jmp draw_loop
+draw_loop_end:
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    pop bp
+
+
+    ret 6
+endp    
+
+; param 1: sprite matrix ds:offset
+; param 2: startX
+; param 3: startY 
+proc EraseSprite
+    matrix_of equ [bp+8]
+    startX equ [bp+6]
+    startY equ [bp+4]
+    push bp
+    mov bp, sp
+    push ax
+    push bx
+    push cx
+    push dx
+    
+    
+
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    pop bp
+
+
+    ret 6
+endp    
 
 proc WaitKey
 	push ax
@@ -628,6 +777,70 @@ _ladders:
 	ret
 endp
 
+; param 1cx
+; param 2dx
+proc Delay
+	cx_param equ [bp+6]
+	dx_param equ [bp+4]
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+	
+	mov cx, cx_param
+	mov dx, dx_param
+	mov ah, 86h ;!!!!! ah not ax you fucker!
+	int 15h
+	
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 4
+endp
+
+
+proc GameLoop
+	push ax
+	push bx
+	push cx
+	push dx
+WaitForData:
+	in al, 64h
+	cmp al, 10b
+	je WaitForData 
+	in al, 60h
+	cmp al, ESCKEY
+	je exit
+	cmp al, DKEY_PRESSED
+	je Draw
+	jmp WaitForData
+Draw:
+	push 00h
+	push 7530h
+	call Delay
+	add [mario_x], 2
+	call DrawMario
+
+	jmp WaitForData
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+proc DrawMario
+	push offset smario
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite
+	ret
+endp
+
 
 start:
 	mov ax, @data
@@ -637,12 +850,17 @@ start:
 	call SetMode
 
     call DrawMap
+	
+	mov [mario_x], 10
+	mov [mario_y], 174
+	call DrawMario
+	
+	call GameLoop
 
-	call WaitKey
+exit:
 	push 0h
 	call SetMode
 	
-exit:
 	mov ax, 4c00h
 	int 21h
 END start

@@ -296,28 +296,29 @@ start:
 	push 1h
 	call SetMode
 	
+	
 	; draw grid
-	; param 1 - grid size
+	;param 1 - grid size
 	; param 2 - startX
 	; param 3 - endX
 	; param 4 - startY
 	; param 5 - endY
 	; param 6 - color
-	;push 5
-	;push 165
-	;push 316
-	;push 20
-	;push 170
-	;push [color_cyan]
-	;call DrawGrid
-;	;
-;	push 5
-;	push 4
-;	push 155
-;	push 20
-;	push 170
-;	push [color_red]
-;	call DrawGrid
+	push 5
+	push 165
+	push 316
+	push 20
+	push 170
+	push [color_cyan]
+	call DrawGrid
+
+	push 5
+	push 4
+	push 155
+	push 20
+	push 170
+	push [color_red]
+	call DrawGrid
 	
 	
 	mov ax, 0
@@ -327,8 +328,6 @@ start:
 	int 33h
 _m:
 	call MouseLoop
-	mov ah, 1
-	
 	jmp _m
 
 	call WaitKey

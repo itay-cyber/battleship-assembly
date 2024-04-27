@@ -1,11 +1,11 @@
 ; SCREEN SIZE
 ; 320 x 200
 ; https://yassinebridi.github.io/asm-docs/8086_bios_and_dos_interrupts.html#int16h_01h
-
+JUMPS
 IDEAL
 MODEL small
+
 STACK 200h
-	
 DATASEG
 
 ; MACROS ;
@@ -32,7 +32,9 @@ DKEY_RELEASED equ 0A0h
 AKEY_PRESSED equ 1E
 AKEY_RELEASED equ 9E
 
+	
 ; CONSTANTS ;
+constants db "Constants"
 color_white dw 000Fh
 color_green dw 000Ah
 color_cyan dw 000Bh
@@ -55,6 +57,9 @@ mario_x dw ?
 mario_y dw ?
 save_key db 0
 
+mario_right_leg_x dw ?
+mario_right_leg_y dw ?
+
 can_draw db 1
 
 ;  STRINGS ;
@@ -64,6 +69,8 @@ msg2 db 'Stop', '$'
 
 
 ; SPRITES ;
+
+
 smario \
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \ ; 4 empty
     	ma_red, ma_red, ma_red, ma_red, ma_red,\ ; top of hat
@@ -129,9 +136,24 @@ smario \
 		ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
 	   ma_boots, ma_boots, ma_boots, ma_boots, ma_row_end
 	db ma_sp_end
-	
-	saved_pixels dd 500 dup(0) ; double word arr - store pixel x y value and color
+
+sredcube \
+	db ma_red, ma_red, ma_red, ma_red, ma_row_end
+	db ma_red, ma_red, ma_red, ma_red, ma_row_end
+	db ma_red, ma_red, ma_red, ma_red, ma_row_end
+	db ma_red, ma_red, ma_red, ma_red, ma_row_end
+	db ma_sp_end
+sbluecube \
+	db ma_blue, ma_blue, ma_blue, ma_blue, ma_row_end
+	db ma_blue, ma_blue, ma_blue, ma_blue, ma_row_end
+	db ma_blue, ma_blue, ma_blue, ma_blue, ma_row_end
+	db ma_blue, ma_blue, ma_blue, ma_blue, ma_row_end
+	db ma_sp_end
+
+	last_sprite_saved_pixels_index dw 0
 	saved_pixels_index dw 0
+	saved_pixels dd 2000 dup(0) ; double word arr - store pixel x y value and color
+
 
 CODESEG
 
@@ -238,6 +260,7 @@ proc SavePixel
 	push bx
 	push cx
 	push dx
+	push si
 
 	lea si, [saved_pixels]
 	mov ax, [saved_pixels_index]
@@ -257,7 +280,7 @@ proc SavePixel
 
 	inc [saved_pixels_index]
 
-	
+	pop si
 	pop dx
 	pop cx
 	pop bx
@@ -275,13 +298,19 @@ proc DrawPixel
 	mov bp, sp
 	push ax
 	push bx
+	push cx
+	push dx
+	push si
 	
 	; draw pixel
 	mov al, color
 	mov bl, 0
 	mov ah, 0ch
 	int 10h
-	
+
+	pop si
+	pop dx
+	pop cx
 	pop bx
 	pop ax
 	pop bp
@@ -302,7 +331,12 @@ proc DrawSprite
     push bx
     push cx
     push dx
-    
+    push si
+	
+	mov ax, [saved_pixels_index]
+	mov [last_sprite_saved_pixels_index], ax
+
+
     mov cx, startX
     mov dx, startY
     mov si, matrix_of
@@ -311,14 +345,20 @@ draw_loop:
     je draw_loop_end
     cmp [byte ptr si], ma_row_end ; check for row end
     je lrow_end
-
     cmp [byte ptr si], ma_nopx ; check for empty pixel
     je no_px
+
+	; save pixel
+	mov ah, 0Dh
+	int 10h ; get pixel color
+	push cx
+	push dx
+	push ax
+	call SavePixel
+
     push [word ptr si] ; draw pixel
     call DrawPixel
-    
 	
-
 no_px:
     inc cx  
     inc si
@@ -330,6 +370,8 @@ lrow_end:
     inc si
     jmp draw_loop
 draw_loop_end:
+
+	pop si
     pop dx
     pop cx
     pop bx
@@ -340,30 +382,45 @@ draw_loop_end:
     ret 6
 endp    
 
-; param 1: sprite matrix ds:offset
-; param 2: startX
-; param 3: startY 
 proc EraseSprite
-    matrix_of equ [bp+8]
-    startX equ [bp+6]
-    startY equ [bp+4]
-    push bp
-    mov bp, sp
     push ax
     push bx
     push cx
     push dx
-    
-    
+    push si
 
+	lea si, [saved_pixels]
+	mov ax, [last_sprite_saved_pixels_index]
+	mov bx, 5
+	mul bx
+	add si, ax
+	mov bx, [saved_pixels_index]
+	sub bx, [last_sprite_saved_pixels_index]
+
+erase_loop:
+	mov cx, [si] ; x
+	add si, 2
+	mov dx, [si] ; y
+	add si, 2
+	mov ah, 0
+	mov al, [byte ptr si]
+	push ax ; color
+	call DrawPixel
+	inc si
+	dec bx
+	jnz erase_loop
+	mov ax, [last_sprite_saved_pixels_index]
+	sub [saved_pixels_index], ax
+
+
+	pop si
     pop dx
     pop cx
     pop bx
     pop ax
-    pop bp
 
 
-    ret 6
+    ret 
 endp    
 
 proc WaitKey
@@ -398,62 +455,6 @@ _ret:
 
 	ret 2
 endp
-
-
-; startx 
-; startY
-; length/size
-; color
-proc DrawX
-	startX equ [bp+10]
-	startY equ [bp+8]
-	xLen equ [bp+6]
-	color equ [bp+4]
-	
-	
-	push bp
-	mov bp, sp
-	push cx
-	push dx
-	push bx
-	mov bx, 0
-	mov cx, startX
-	mov dx, startY
-
-diag1_loop:
-	push color 
-	call DrawPixel
-	
-	inc cx
-	inc dx
-	
-	inc bx
-	cmp bx, xLen
-	jne diag1_loop
-
-	mov cx, startX
-	add cx, xLen
-	dec cx
-	mov dx, startY
-	mov bx, 0
-	
-diag2_loop:
-	push color
-	call DrawPixel
-	dec cx
-	inc dx
-	inc bx
-	cmp bx, xLen
-	jne diag2_loop
-	
-
-	pop bx
-	pop dx
-	pop cx
-	pop bp
-	ret 8
-endp
-
 
 ; param 1: cursorx 
 ; param 2: cursory
@@ -651,7 +652,7 @@ proc DrawMap
 	; line of blocks - y180
 	push 0
 	push 190
-	push 18
+	push 18 ; n blocks
 	call DrawPinkBlockNTimes
 	
 	; first staircase
@@ -777,8 +778,8 @@ _ladders:
 	ret
 endp
 
-; param 1cx
-; param 2dx
+; param 1 cx
+; param 2 dx
 proc Delay
 	cx_param equ [bp+6]
 	dx_param equ [bp+4]
@@ -802,30 +803,65 @@ proc Delay
 	ret 4
 endp
 
+proc CheckLiftMario
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
+	
+	cmp [mario_right_leg_x], 180
+	je lift_mario
+	cmp [mario_right_leg_x], 200
+	je lift_mario
+	cmp [mario_right_leg_x], 220
+	je lift_mario
+	cmp [mario_right_leg_x], 240
+	je lift_mario 
+	cmp [mario_right_leg_x], 260
+	je lift_mario
+	cmp [mario_right_leg_x], 280
+	je lift_mario
+	jmp _ret_check_lift_mario
+lift_mario:
+	dec [mario_y]
+
+_ret_check_lift_mario:
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
 
 proc GameLoop
 	push ax
 	push bx
 	push cx
 	push dx
-WaitForData:
+wait_for_key:
 	in al, 64h
 	cmp al, 10b
-	je WaitForData 
+	je wait_for_key 
 	in al, 60h
 	cmp al, ESCKEY
 	je exit
 	cmp al, DKEY_PRESSED
-	je Draw
-	jmp WaitForData
-Draw:
+	je move_mario
+	jmp wait_for_key
+move_mario:
+
 	push 00h
 	push 7530h
-	call Delay
+	call Delay ; 0.03 seconds
+
+	call EraseSprite
+	call CheckLiftMario 
+
 	add [mario_x], 2
 	call DrawMario
-
-	jmp WaitForData
+	jmp wait_for_key
 	pop dx
 	pop cx
 	pop bx
@@ -834,10 +870,24 @@ Draw:
 endp
 
 proc DrawMario
+	push ax
+	push bx
+	push cx
+	push dx
 	push offset smario
 	push [mario_x]
 	push [mario_y]
 	call DrawSprite
+	mov ax, [mario_x]
+	add ax, 12
+	mov [mario_right_leg_x], ax
+	mov ax, [mario_y]
+	add ax, 16
+	mov [mario_right_leg_y], ax
+	pop dx
+	pop cx
+	pop bx
+	pop ax
 	ret
 endp
 
@@ -853,9 +903,32 @@ start:
 	
 	mov [mario_x], 10
 	mov [mario_y], 174
+	mov [mario_right_leg_x], 22
+	mov [mario_right_leg_y], 190
 	call DrawMario
+
 	
 	call GameLoop
+
+	;push offset sredcube
+	;push 160
+	;push 100
+	;call DrawSprite 
+	;
+	;push 0Fh
+	;push 4240h
+	;call Delay ; 0.03 seconds
+	;
+	;push offset sbluecube
+	;push 160
+	;push 100
+	;call DrawSprite
+	;
+	;push 0Fh
+	;push 4240h
+	;call Delay ; 0.03 seconds
+	;
+	;call ERASESPRITE
 
 exit:
 	push 0h

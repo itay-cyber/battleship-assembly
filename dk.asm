@@ -9,6 +9,8 @@ STACK 200h
 DATASEG
 
 ; MACROS ;
+; COLORS 
+ma_white equ 0Fh
 ma_black equ 00h
 ma_red equ 04h
 ma_green equ 02h
@@ -19,18 +21,29 @@ ma_nopx equ 0FEh
 ma_mario_skin equ 66d
 ma_mario_hair equ 6d
 ma_yellow equ 44d
-ma_boots equ ma_blue
+ma_boots equ ma_mario_hair
 
+; conditions
 TRUE equ 1
 FALSE equ 0
 
-ESCKEY equ 1
+RIGHT equ 1
+LEFT equ 0
 
+; animations
+MARIO_STANDING equ 0
+MARIO_RUNNING_1 equ 1
+MARIO_RUNNING_2 equ 2
+MARIO_RUNNING_3 equ 3
+
+; KEY CODES
+ESCKEY equ 1
 DKEY_PRESSED equ 20h
 DKEY_RELEASED equ 0A0h
 
-AKEY_PRESSED equ 1E
-AKEY_RELEASED equ 9E
+AKEY_PRESSED equ 1Eh
+AKEY_RELEASED equ 9Eh
+
 
 	
 ; CONSTANTS ;
@@ -55,10 +68,13 @@ ladder_final_stepdist dw 2
 
 mario_x dw ?
 mario_y dw ?
-save_key db 0
+mario_direction dw RIGHT
+frame_num dw 0
 
 mario_right_leg_x dw ?
 mario_right_leg_y dw ?
+mario_left_leg_x dw ?
+mario_left_leg_y dw ?
 
 can_draw db 1
 
@@ -71,8 +87,8 @@ msg2 db 'Stop', '$'
 ; SPRITES ;
 
 
-smario \
-	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \ ; 4 empty
+smario_standing \
+	db ma_nopx, ma_nopx, ma_nopx,  \ ; 3 empty
     	ma_red, ma_red, ma_red, ma_red, ma_red,\ ; top of hat
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end ; 4 empty
 	;2
@@ -137,6 +153,186 @@ smario \
 	   ma_boots, ma_boots, ma_boots, ma_boots, ma_row_end
 	db ma_sp_end
 
+
+
+smario_running_frame_1 \
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end ;12 empty
+	;2
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;3
+	db ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 4
+	db ma_nopx, ma_nopx, \
+		ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_black, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	; 5
+	db ma_nopx, \
+		ma_mario_hair, ma_mario_skin, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_black, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_row_end
+	; 6
+	db ma_nopx, \
+		ma_mario_hair, ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_row_end
+	;7
+	db ma_nopx, \
+		ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, \
+	   ma_nopx, ma_row_end
+	; 8
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 9
+	db ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_blue, ma_red, ma_nopx, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 10
+	db ma_nopx, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_nopx, \
+	   ma_row_end
+	; 11
+	db ma_mario_skin, ma_mario_skin, ma_blue, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_nopx, ma_nopx, ma_row_end
+	; 12
+	db ma_mario_skin, ma_nopx, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_nopx, ma_nopx, ma_nopx, \
+		ma_row_end
+	; 13
+	db ma_boots, ma_boots, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_nopx, ma_nopx, ma_nopx, \
+		ma_row_end
+	; 14
+	db ma_boots, ma_boots, ma_blue, ma_blue, ma_nopx, ma_blue, ma_blue, ma_blue, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_row_end
+	; 15
+	db ma_boots, ma_nopx, ma_nopx, ma_nopx, ma_boots, ma_boots, ma_boots, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_row_end
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_boots, ma_boots, ma_boots, ma_boots, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_row_end 
+	db ma_sp_end
+
+
+smario_running_frame_2 \
+	db ma_nopx, ma_nopx, ma_nopx,  \ ; 3 empty
+    	ma_red, ma_red, ma_red, ma_red, ma_red,\ ; top of hat
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end ; 4 empty
+	;2
+	db ma_nopx, ma_nopx, \ ; 2 empty
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \ ; bottom of hat
+	   ma_nopx, ma_row_end ; 1 empty
+	;3
+	db ma_nopx, ma_nopx, \ ; 2 mt
+		ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_black, ma_mario_skin, \ ; hair + skin + eyes
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end ; 3 mt
+	;4
+	db ma_nopx, \ ; 1 mt
+		ma_mario_hair, ma_mario_skin, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_black, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_row_end
+	;5
+	db ma_nopx, \ 
+		ma_mario_hair, ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_row_end
+	;6
+	db ma_nopx, \
+		ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, \
+	   ma_nopx, ma_row_end
+	; 7
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 8
+	db ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_blue, ma_red, ma_red, ma_red,\
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;9
+	db ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;10
+	db ma_nopx, \
+		ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_yellow, ma_blue, ma_blue, ma_yellow, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;11
+	db ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;12
+	db ma_nopx, \
+		ma_blue, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_blue, ma_blue, ma_blue, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;13
+	db ma_nopx, ma_nopx, \
+		ma_blue, ma_red, ma_mario_skin, ma_mario_skin, ma_blue, ma_blue, ma_blue, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;14
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_blue, ma_blue, ma_blue, ma_boots, ma_boots, ma_boots, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;15
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_boots, ma_boots, ma_boots, ma_boots, ma_boots, ma_boots, ma_boots, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 16
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_boots, ma_boots, ma_boots, ma_boots, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+		
+	
+	db ma_sp_end
+
+smario_running_frame_3 \
+	db ma_nopx, ma_nopx, ma_nopx,  \ ; 3 empty
+    	ma_red, ma_red, ma_red, ma_red, ma_red,\ ; top of hat
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end ; 4 empty
+	;2
+	db ma_nopx, ma_nopx, \ ; 2 empty
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \ ; bottom of hat
+	   ma_nopx, ma_row_end ; 1 empty
+	;3
+	db ma_nopx, ma_nopx, \ ; 2 mt
+		ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_black, ma_mario_skin, \ ; hair + skin + eyes
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end ; 3 mt
+	;4
+	db ma_nopx, \ ; 1 mt
+		ma_mario_hair, ma_mario_skin, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_black, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_row_end
+	;5
+	db ma_nopx, \ 
+		ma_mario_hair, ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_row_end
+	;6
+	db ma_nopx, \
+		ma_mario_hair, ma_mario_hair, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, \
+	   ma_nopx, ma_row_end
+	; 7
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 8
+	db ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_red, ma_red, \
+		ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;9
+	db ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_blue, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_row_end
+	; 10
+	db ma_mario_skin, ma_mario_skin, ma_nopx, ma_red, ma_red, ma_blue, ma_yellow, ma_blue, ma_blue, ma_blue, ma_mario_skin, ma_mario_skin, ma_row_end
+	;11
+	db ma_nopx, ma_nopx, ma_nopx,\
+		ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, \
+	   ma_nopx, ma_boots, ma_row_end
+	;12
+	db ma_nopx, ma_nopx, \
+		ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_boots, \
+	   ma_row_end
+	;13 
+	db ma_nopx, \
+		ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_boots, \
+	   ma_row_end
+	;14
+	db ma_boots, ma_blue, ma_blue, ma_blue, ma_nopx, ma_nopx, ma_nopx, ma_blue, ma_blue, ma_blue, ma_blue, ma_boots, ma_row_end
+	;15
+	db ma_boots, ma_boots, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;16
+	db ma_boots, ma_boots, ma_boots, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	db ma_sp_end
 sredcube \
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
@@ -149,6 +345,7 @@ sbluecube \
 	db ma_blue, ma_blue, ma_blue, ma_blue, ma_row_end
 	db ma_blue, ma_blue, ma_blue, ma_blue, ma_row_end
 	db ma_sp_end
+	
 
 	last_sprite_saved_pixels_index dw 0
 	saved_pixels_index dw 0
@@ -239,6 +436,7 @@ vert_loop:
 	jmp vert_loop
 
 vline_drawn:
+
 	pop dx
 	pop cx
 	pop bp
@@ -803,30 +1001,80 @@ proc Delay
 	ret 4
 endp
 
-proc CheckLiftMario
+; returns - dx - 1 for in bounds, 0 for out of bounds
+proc CheckIsInBounds
+	push ax
+	push bx
+	push cx
+	mov dx, 1
+	cmp [mario_direction], RIGHT
+	jne left_in_bounds
+	cmp [mario_right_leg_x], 320
+	je out_bounds
+	jmp _return_check_is_in_bounds
+left_in_bounds:
+	cmp [mario_left_leg_x], 0
+	jne _return_check_is_in_bounds
+out_bounds:
+	mov dx, 0
+_return_check_is_in_bounds:
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+proc MarioElevationHandler
 	push ax
 	push bx
 	push cx
 	push dx
 	push si
 	
-	cmp [mario_right_leg_x], 180
-	je lift_mario
-	cmp [mario_right_leg_x], 200
-	je lift_mario
-	cmp [mario_right_leg_x], 220
-	je lift_mario
-	cmp [mario_right_leg_x], 240
-	je lift_mario 
-	cmp [mario_right_leg_x], 260
-	je lift_mario
-	cmp [mario_right_leg_x], 280
-	je lift_mario
-	jmp _ret_check_lift_mario
-lift_mario:
-	dec [mario_y]
+	; check for x and y values, raise y depending on direction and x value
+	cmp [mario_direction], RIGHT
+	jne mario_elevation_handler_left
 
-_ret_check_lift_mario:
+	; direction = right
+	cmp [mario_x], 178
+	je elevate
+	cmp [mario_x], 198
+	je elevate
+	cmp [mario_x], 218
+	je elevate
+	cmp [mario_x], 238
+	je elevate
+	cmp [mario_x], 258
+	je elevate
+	cmp [mario_x], 278
+	je elevate
+	cmp [mario_x], 298
+	je elevate
+	jmp _return_mario_elevation
+
+depress:
+	inc [mario_y]
+	jmp _return_mario_elevation
+elevate:
+	dec [mario_y]
+	jmp _return_mario_elevation
+mario_elevation_handler_left:
+	cmp [mario_x], 180
+	je depress ; :(
+	cmp [mario_x], 200
+	je depress ; :(
+	cmp [mario_x], 220
+	je depress ; :(
+	cmp [mario_x], 240
+	je depress ; :(
+	cmp [mario_x], 260
+	je depress ; :(
+	cmp [mario_x], 280
+	je depress ; :(
+	cmp [mario_x], 300
+	je depress ; :(
+
+_return_mario_elevation:
 	pop si
 	pop dx
 	pop cx
@@ -845,22 +1093,51 @@ wait_for_key:
 	cmp al, 10b
 	je wait_for_key 
 	in al, 60h
-	cmp al, ESCKEY
+
+	cmp al, ESCKEY ; esc
 	je exit
-	cmp al, DKEY_PRESSED
+
+	cmp al, DKEY_PRESSED ; d
+	mov [mario_direction], RIGHT
 	je move_mario
+
+	cmp al, AKEY_PRESSED ; a
+	mov [mario_direction], LEFT
+	je move_mario
+
 	jmp wait_for_key
 move_mario:
+	; check if in bounds
+	; check direction
+	; move mario by direction
+	call CheckIsInBounds 
+	cmp dx, TRUE
+	jne _after_move
 
 	push 00h
-	push 7530h
-	call Delay ; 0.03 seconds
+	push 9C40h
+	call Delay ; 0.04 seconds
 
 	call EraseSprite
-	call CheckLiftMario 
+	; check for elevation
+	call MarioElevationHandler
 
+	; move mario
+	cmp [mario_direction], RIGHT
+	jne move_mario_left
 	add [mario_x], 2
+	jmp _draw
+move_mario_left:
+	sub [mario_x], 2
+_draw:
+	cmp [frame_num], 3
+	jne _skip_reset
+	mov [frame_num], 0
+_skip_reset:
 	call DrawMario
+	inc [frame_num]
+
+_after_move:
 	jmp wait_for_key
 	pop dx
 	pop cx
@@ -869,21 +1146,50 @@ move_mario:
 	ret
 endp
 
+; param 1 - frame - anything except 1,2,3 for default
 proc DrawMario
 	push ax
 	push bx
 	push cx
 	push dx
-	push offset smario
+	cmp [frame_num], MARIO_RUNNING_1
+	je _mario_running1
+	cmp [frame_num], MARIO_RUNNING_2
+	je _mario_running2
+	cmp [frame_num], MARIO_RUNNING_3
+	je _mario_running3
+	push offset smario_standing
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite 
+	jmp _logic
+_mario_running1:
+	push offset smario_running_frame_1
 	push [mario_x]
 	push [mario_y]
 	call DrawSprite
+	jmp _logic
+_mario_running2:
+	push offset smario_running_frame_2
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite
+	jmp _logic
+_mario_running3:
+	push offset smario_running_frame_3
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite
+_logic:
 	mov ax, [mario_x]
+	mov [mario_left_leg_x], ax
 	add ax, 12
 	mov [mario_right_leg_x], ax
 	mov ax, [mario_y]
 	add ax, 16
 	mov [mario_right_leg_y], ax
+	mov [mario_left_leg_y], ax
+
 	pop dx
 	pop cx
 	pop bx
@@ -905,30 +1211,13 @@ start:
 	mov [mario_y], 174
 	mov [mario_right_leg_x], 22
 	mov [mario_right_leg_y], 190
+	push 1
 	call DrawMario
 
 	
 	call GameLoop
 
-	;push offset sredcube
-	;push 160
-	;push 100
-	;call DrawSprite 
-	;
-	;push 0Fh
-	;push 4240h
-	;call Delay ; 0.03 seconds
-	;
-	;push offset sbluecube
-	;push 160
-	;push 100
-	;call DrawSprite
-	;
-	;push 0Fh
-	;push 4240h
-	;call Delay ; 0.03 seconds
-	;
-	;call ERASESPRITE
+	
 
 exit:
 	push 0h

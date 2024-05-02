@@ -29,6 +29,8 @@ FALSE equ 0
 
 RIGHT equ 1
 LEFT equ 0
+UP equ 3
+DOWN equ 2
 
 ; animations
 MARIO_STANDING equ 0
@@ -43,6 +45,12 @@ DKEY_RELEASED equ 0A0h
 
 AKEY_PRESSED equ 1Eh
 AKEY_RELEASED equ 9Eh
+
+WKEY_PRESSED equ 11h
+WKEY_RELEASED equ 91h
+
+SKEY_PRESSED equ 1Fh
+SKEY_RELEASED equ 9Fh
 
 
 	
@@ -70,6 +78,8 @@ mario_x dw ?
 mario_y dw ?
 mario_direction dw RIGHT
 frame_num dw 0
+is_flipped dw FALSE
+is_grounded dw TRUE
 
 mario_right_leg_x dw ?
 mario_right_leg_y dw ?
@@ -333,6 +343,62 @@ smario_running_frame_3 \
 	;16
 	db ma_boots, ma_boots, ma_boots, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	db ma_sp_end
+
+smario_climbing \
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;2
+	db ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;3
+	db ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;4
+	db ma_nopx, ma_nopx, \
+		ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;5
+	db ma_nopx, ma_nopx,\
+		ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;6
+	db ma_nopx, ma_nopx,\
+		ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;7
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_hair, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	; 8
+	db ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;9
+	db ma_nopx, \
+		ma_red, ma_red, ma_red, ma_blue, ma_red, ma_red, ma_blue, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_row_end
+	;10
+	db ma_red, ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_blue, ma_blue, ma_red, ma_red, ma_red, ma_red, ma_row_end
+	;11
+	db ma_mario_skin, ma_mario_skin, ma_red, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_red, ma_mario_skin, ma_mario_skin, ma_row_end
+	;12
+	db ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_row_end
+	;13
+	db ma_mario_skin, ma_mario_skin, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_blue, ma_mario_skin, ma_mario_skin, ma_row_end
+	;14
+	db ma_nopx, ma_nopx, \
+		ma_blue, ma_blue, ma_blue, \
+	   ma_nopx, ma_nopx, \
+		ma_blue, ma_blue, ma_blue, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;15
+	db ma_nopx, ma_boots, ma_boots, ma_boots, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_boots, ma_boots, ma_boots, ma_nopx, ma_row_end
+	;16
+	db ma_boots, ma_boots, ma_boots, ma_boots, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_boots, ma_boots, ma_boots, ma_boots, ma_row_end
+	db ma_sp_end
 sredcube \
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
@@ -346,10 +412,15 @@ sbluecube \
 	db ma_blue, ma_blue, ma_blue, ma_blue, ma_row_end
 	db ma_sp_end
 	
-
+	
+testsprite \
+	db ma_white, ma_green, ma_row_end
+	db ma_white, ma_green, ma_row_end
+	db ma_white, ma_white, ma_row_end, ma_sp_end
 	last_sprite_saved_pixels_index dw 0
 	saved_pixels_index dw 0
 	saved_pixels dd 2000 dup(0) ; double word arr - store pixel x y value and color
+
 
 
 CODESEG
@@ -579,6 +650,74 @@ draw_loop_end:
 
     ret 6
 endp    
+
+; param 1: sprite offset
+; param 2: start X
+; param 3: start Y
+; param 4: sprite width - this is neccesary so the proc knows from where to start drawing
+proc DrawFlippedSprite
+	matrix_of equ [bp+10]
+    startX equ [bp+8]
+    startY equ [bp+6]
+	sprite_width equ [bp+4]
+    push bp
+    mov bp, sp
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+	
+	mov ax, [saved_pixels_index]
+	mov [last_sprite_saved_pixels_index], ax
+
+
+    mov cx, startX
+	add cx, sprite_width
+    mov dx, startY
+    mov si, matrix_of
+flipped_draw_loop:
+    cmp [byte ptr si], ma_sp_end ; check for sprite end
+    je flipped_draw_loop_end
+    cmp [byte ptr si], ma_row_end ; check for row end
+    je flipped_lrow_end
+    cmp [byte ptr si], ma_nopx ; check for empty pixel
+    je flipped_no_px
+
+	; save pixel
+	mov ah, 0Dh
+	int 10h ; get pixel color
+	push cx
+	push dx
+	push ax
+	call SavePixel
+
+    push [word ptr si] ; draw pixel
+    call DrawPixel
+	
+flipped_no_px:
+    dec cx  
+    inc si
+    jmp flipped_draw_loop
+
+flipped_lrow_end:
+    mov cx, startX
+	add cx, sprite_width
+    inc dx
+    inc si
+    jmp flipped_draw_loop
+flipped_draw_loop_end:
+
+	pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+    pop bp
+
+
+    ret 8
+endp
 
 proc EraseSprite
     push ax
@@ -1024,6 +1163,26 @@ _return_check_is_in_bounds:
 	ret
 endp
 
+; returns - dx = 1 for colliding, 0 for not
+proc CheckIsCollidingWithLadder
+	push ax
+	push bx
+	push cx
+	mov dx, 0
+	cmp [mario_x], 268
+	jge colliding
+	jmp _return_check_is_in_bounds
+colliding:
+	cmp [mario_x], 276
+	jg _return_check_is_colliding_with_ladder
+	mov dx, 1
+_return_check_is_colliding_with_ladder:
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
 proc MarioElevationHandler
 	push ax
 	push bx
@@ -1105,12 +1264,19 @@ wait_for_key:
 	mov [mario_direction], LEFT
 	je move_mario
 
+	cmp al, WKEY_PRESSED ; w up
+	mov [mario_direction], UP
+	je move_mario
+
+	cmp al, SKEY_PRESSED 
+	mov [mario_direction], DOWN
+	je move_mario
 	jmp wait_for_key
 move_mario:
 	; check if in bounds
 	; check direction
 	; move mario by direction
-	call CheckIsInBounds 
+	call CheckIsInBounds
 	cmp dx, TRUE
 	jne _after_move
 
@@ -1121,22 +1287,45 @@ move_mario:
 	call EraseSprite
 	; check for elevation
 	call MarioElevationHandler
-
+	
+	call CheckIsCollidingWithLadder
 	; move mario
-	cmp [mario_direction], RIGHT
-	jne move_mario_left
+	cmp [mario_direction], LEFT ; left
+	je move_mario_left
+
+	cmp [mario_direction], UP ; up 
+	je move_mario_up
+
+	cmp [mario_direction], DOWN ; down
+	je move_mario_down
+
+	mov [is_flipped], FALSE ; rightt
 	add [mario_x], 2
 	jmp _draw
+move_mario_down:
+	cmp dx, 1
+	jne _draw_climbing_mario
+	add [mario_y], 2
+	jmp _draw_climbing_mario
+move_mario_up:
+	cmp dx, 1
+	jne _draw_climbing_mario
+	sub [mario_y], 2
+	jmp _draw_climbing_mario
 move_mario_left:
+	mov [is_flipped], TRUE
 	sub [mario_x], 2
 _draw:
 	cmp [frame_num], 3
 	jne _skip_reset
 	mov [frame_num], 0
 _skip_reset:
+	push [is_flipped]
 	call DrawMario
 	inc [frame_num]
-
+	jmp _after_move
+_draw_climbing_mario:
+	call DrawMarioClimbing
 _after_move:
 	jmp wait_for_key
 	pop dx
@@ -1146,41 +1335,117 @@ _after_move:
 	ret
 endp
 
-; param 1 - frame - anything except 1,2,3 for default
+; param flipped ? draw mario flipped or not
 proc DrawMario
+	flipped equ [bp+4]
+	push bp
+	mov bp, sp
 	push ax
 	push bx
 	push cx
 	push dx
+
 	cmp [frame_num], MARIO_RUNNING_1
 	je _mario_running1
 	cmp [frame_num], MARIO_RUNNING_2
 	je _mario_running2
 	cmp [frame_num], MARIO_RUNNING_3
 	je _mario_running3
+	
+	; STANDING MARIO
+	cmp flipped, TRUE
+	je _mario_standing_flipped
 	push offset smario_standing
 	push [mario_x]
 	push [mario_y]
 	call DrawSprite 
 	jmp _logic
+_mario_standing_flipped:
+	push offset smario_standing
+	push [mario_x]
+	push [mario_y]
+	push 12
+	call DrawFlippedSprite	
+	jmp _logic
+
+	; MARIO RUNNING F1
 _mario_running1:
+	cmp flipped, TRUE
+	je _mario_running1_flipped
 	push offset smario_running_frame_1
 	push [mario_x]
 	push [mario_y]
 	call DrawSprite
 	jmp _logic
+_mario_running1_flipped:
+	push offset smario_running_frame_1
+	push [mario_x]
+	push [mario_y]
+	push 12 ; mario width
+	call DrawFlippedSprite
+	jmp _logic
+
+	; MARIO RUNNING F2
 _mario_running2:
+	cmp flipped, TRUE
+	je _mario_running2_flipped
 	push offset smario_running_frame_2
 	push [mario_x]
 	push [mario_y]
 	call DrawSprite
 	jmp _logic
+_mario_running2_flipped:
+	push offset smario_running_frame_2
+	push [mario_x]
+	push [mario_y]
+	push 12 ; mario width
+	call DrawFlippedSprite
+	jmp _logic
+
+	; MARIO RUNNING F3
 _mario_running3:
+	cmp flipped, TRUE
+	je _mario_running3_flipped
 	push offset smario_running_frame_3
 	push [mario_x]
 	push [mario_y]
 	call DrawSprite
+	jmp _logic
+_mario_running3_flipped:
+	push offset smario_running_frame_3
+	push [mario_x]
+	push [mario_y]
+	push 12 ; mario width
+	call DrawFlippedSprite
 _logic:
+	mov ax, [mario_x]
+	mov [mario_left_leg_x], ax
+	add ax, 12
+	mov [mario_right_leg_x], ax
+	mov ax, [mario_y]
+	add ax, 16
+	mov [mario_right_leg_y], ax
+	mov [mario_left_leg_y], ax
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 2
+endp
+
+proc DrawMarioClimbing
+	push ax
+	push bx
+	push cx
+	push dx
+	
+	push offset smario_climbing
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite
+	
 	mov ax, [mario_x]
 	mov [mario_left_leg_x], ax
 	add ax, 12
@@ -1197,7 +1462,6 @@ _logic:
 	ret
 endp
 
-
 start:
 	mov ax, @data
 	mov ds, ax
@@ -1211,13 +1475,9 @@ start:
 	mov [mario_y], 174
 	mov [mario_right_leg_x], 22
 	mov [mario_right_leg_y], 190
-	push 1
 	call DrawMario
 
-	
 	call GameLoop
-
-	
 
 exit:
 	push 0h

@@ -24,19 +24,19 @@ ma_yellow equ 44d
 ma_boots equ ma_mario_hair
 
 ; conditions
-TRUE equ 1
-FALSE equ 0
+TRUE equ 0001h
+FALSE equ 0000h
 
-RIGHT equ 1
-LEFT equ 0
-UP equ 3
-DOWN equ 2
+RIGHT equ 00001h
+LEFT equ 0000h
+UP equ 0003h
+DOWN equ 0002h
 
 ; animations
-MARIO_STANDING equ 0
-MARIO_RUNNING_1 equ 1
-MARIO_RUNNING_2 equ 2
-MARIO_RUNNING_3 equ 3
+MARIO_STANDING equ 0000h
+MARIO_RUNNING_1 equ 0001h
+MARIO_RUNNING_2 equ 0002h
+MARIO_RUNNING_3 equ 0003h
 
 ; KEY CODES
 ESCKEY equ 1
@@ -63,7 +63,9 @@ color_red dw 0004h
 color_lime dw 50
 color_gray dw 8
 color_bright_pink dw 37
-color_pink dw 38
+color_pink dw 38d
+
+
 
 pblock_length dw 10
 half_pblock_length dw 5
@@ -85,6 +87,7 @@ mario_right_leg_x dw ?
 mario_right_leg_y dw ?
 mario_left_leg_x dw ?
 mario_left_leg_y dw ?
+gravity_enabled dw 1
 
 can_draw db 1
 
@@ -1141,7 +1144,7 @@ proc Delay
 endp
 
 ; returns - dx - 1 for in bounds, 0 for out of bounds
-proc CheckIsInBounds
+proc CheckIsInBoundsX
 	push ax
 	push bx
 	push cx
@@ -1177,6 +1180,84 @@ colliding:
 	jg _return_check_is_colliding_with_ladder
 	mov dx, 1
 _return_check_is_colliding_with_ladder:
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+; Check pixel under mario's legs for ground color
+; dx: 1 - on ground
+; dx: 0 - in air
+; dx: 2 - underground - used for elevate
+proc GroundCheck
+	push ax
+	push bx
+	push cx
+	;mario height + 1
+	mov dx, [mario_y]
+	add dx, 16
+	mov cx, [mario_x]
+	
+
+	mov ah, 0Dh ; check pix color
+	int 10h
+	mov dx, 0
+	mov ah, 00
+	cmp ax, [color_pink]
+	je grounded
+	
+	cmp ax, [color_red]
+	jne _ret_ground_check
+	mov dx, 2
+	jmp _ret_ground_check
+grounded:
+	mov dx, 1
+_ret_ground_check:
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+proc Gravity
+	push ax
+	push bx
+	push cx
+
+
+apply_grav:
+	call GroundCheck
+	cmp dx, FALSE
+	jne _ret_gravity
+	inc [mario_y]
+	jmp apply_grav
+
+_ret_gravity:
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+proc SmartMarioElevationHandler
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
+
+	call GroundCheck
+	cmp dx, 2 ; underground
+	je _elevate
+	jmp _ret_mario_smart_elev
+_elevate:
+	dec [mario_y]
+
+_ret_mario_smart_elev:
+
+	pop si
+	pop dx
 	pop cx
 	pop bx
 	pop ax
@@ -1247,7 +1328,12 @@ proc GameLoop
 	push bx
 	push cx
 	push dx
+	; gravity
 wait_for_key:
+	cmp [gravity_enabled], FALSE
+	je skip_grav
+	call Gravity
+skip_grav:
 	in al, 64h
 	cmp al, 10b
 	je wait_for_key 
@@ -1255,6 +1341,7 @@ wait_for_key:
 
 	cmp al, ESCKEY ; esc
 	je exit
+
 
 	cmp al, DKEY_PRESSED ; d
 	mov [mario_direction], RIGHT
@@ -1276,7 +1363,7 @@ move_mario:
 	; check if in bounds
 	; check direction
 	; move mario by direction
-	call CheckIsInBounds
+	call CheckIsInBoundsX
 	cmp dx, TRUE
 	jne _after_move
 
@@ -1286,10 +1373,12 @@ move_mario:
 
 	call EraseSprite
 	; check for elevation
-	call MarioElevationHandler
+	call SmartMarioElevationHandler
 	
 	call CheckIsCollidingWithLadder
+	mov [gravity_enabled], TRUE
 	; move mario
+	
 	cmp [mario_direction], LEFT ; left
 	je move_mario_left
 
@@ -1305,11 +1394,13 @@ move_mario:
 move_mario_down:
 	cmp dx, 1
 	jne _draw_climbing_mario
+	mov [gravity_enabled], FALSE
 	add [mario_y], 2
 	jmp _draw_climbing_mario
 move_mario_up:
 	cmp dx, 1
 	jne _draw_climbing_mario
+	mov [gravity_enabled], FALSE
 	sub [mario_y], 2
 	jmp _draw_climbing_mario
 move_mario_left:
@@ -1418,6 +1509,15 @@ _mario_running3_flipped:
 	push 12 ; mario width
 	call DrawFlippedSprite
 _logic:
+	mov cx, [mario_x]
+	mov dx, [mario_y]
+	push [color_red]
+	call Drawpixel
+
+	;add dx, 16
+	;push [color_lime]
+	;call DrawPixel
+
 	mov ax, [mario_x]
 	mov [mario_left_leg_x], ax
 	add ax, 12
@@ -1454,7 +1554,10 @@ proc DrawMarioClimbing
 	add ax, 16
 	mov [mario_right_leg_y], ax
 	mov [mario_left_leg_y], ax
-
+	mov cx, [mario_x]
+	mov dx, [mario_y]
+	push [color_red]
+	call Drawpixel
 	pop dx
 	pop cx
 	pop bx
@@ -1471,12 +1574,11 @@ start:
 
     call DrawMap
 	
-	mov [mario_x], 10
-	mov [mario_y], 174
+	mov [mario_x], 250
+	mov [mario_y], 120
 	mov [mario_right_leg_x], 22
 	mov [mario_right_leg_y], 190
 	call DrawMario
-
 	call GameLoop
 
 exit:

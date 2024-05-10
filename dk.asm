@@ -82,6 +82,7 @@ mario_direction dw RIGHT
 frame_num dw 0
 is_flipped dw FALSE
 is_grounded dw TRUE
+is_climbing db FALSE
 
 mario_right_leg_x dw ?
 mario_right_leg_y dw ?
@@ -90,8 +91,10 @@ mario_left_leg_y dw ?
 gravity_enabled dw 1
 
 can_draw db 1
+debug db 0
 
-;  STRINGS ;
+
+;  STRINGS ;dddddd
 kte_msg db "Press any key to exit...", 13, 10, '$'
 msg1 db 'Start', '$'
 msg2 db 'Stop', '$'
@@ -1392,13 +1395,17 @@ move_mario:
 	add [mario_x], 2
 	jmp _draw
 move_mario_down:
-	cmp dx, 1
+	cmp dx, TRUE ; check if colliding with ladder
 	jne _draw_climbing_mario
+	; check if in bounds - if on bottom floor, don't move down
+	
+	cmp dx, TRUE ; on ground 
+	je _draw_climbing_mario
 	mov [gravity_enabled], FALSE
 	add [mario_y], 2
 	jmp _draw_climbing_mario
 move_mario_up:
-	cmp dx, 1
+	cmp dx, TRUE ; ; check if colliding with ladder
 	jne _draw_climbing_mario
 	mov [gravity_enabled], FALSE
 	sub [mario_y], 2
@@ -1509,11 +1516,13 @@ _mario_running3_flipped:
 	push 12 ; mario width
 	call DrawFlippedSprite
 _logic:
+	cmp debug, TRUE
+	jne skip_debug
 	mov cx, [mario_x]
 	mov dx, [mario_y]
 	push [color_red]
 	call Drawpixel
-
+skip_debug:
 	;add dx, 16
 	;push [color_lime]
 	;call DrawPixel
@@ -1574,8 +1583,8 @@ start:
 
     call DrawMap
 	
-	mov [mario_x], 250
-	mov [mario_y], 120
+	mov [mario_x], 14
+	mov [mario_y], 174
 	mov [mario_right_leg_x], 22
 	mov [mario_right_leg_y], 190
 	call DrawMario

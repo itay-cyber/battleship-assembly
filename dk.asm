@@ -26,6 +26,7 @@ ma_boots equ ma_mario_hair
 ; conditions
 TRUE equ 0001h
 FALSE equ 0000h
+ON_BOUNDS_EDGE equ 0002h
 
 RIGHT equ 00001h
 LEFT equ 0000h
@@ -71,28 +72,33 @@ pblock_length dw 10
 half_pblock_length dw 5
 
 ; VARS ;
-g_vdist dw ?
-g_hdist dw ?
 ladder_stepdist dw ?
 ladder_final_stepdist dw 2
 
+; mario coords
 mario_x dw ?
 mario_y dw ?
+
 mario_direction dw RIGHT
 frame_num dw 0
 is_flipped dw FALSE
 is_grounded dw TRUE
 is_climbing db FALSE
 
+; mario position points - most unused
 mario_right_leg_x dw ?
 mario_right_leg_y dw ?
 mario_left_leg_x dw ?
 mario_left_leg_y dw ?
+
 gravity_enabled dw 1
 
-can_draw db 1
+; debug configuration
 debug db 0
+show_coords db 1
 
+; list of y coords to check when colliding with ladder but on floor - so mario doesn't fall through - terminated with 0
+floor_edges_list dw 169, 129, 130, 125, 126, 88, 84, 85, 0
 
 ;  STRINGS ;dddddd
 kte_msg db "Press any key to exit...", 13, 10, '$'
@@ -427,9 +433,39 @@ testsprite \
 	saved_pixels_index dw 0
 	saved_pixels dd 2000 dup(0) ; double word arr - store pixel x y value and color
 
-
-
+blank db "         $"
 CODESEG
+
+
+proc PrintNumber           
+	push ax
+	push bx
+	push cx
+	push dx
+    mov     bx,10          ;CONST
+    xor     cx,cx          ;Reset counter
+	; how does this work
+a:
+ 	xor dx,dx          ;Setup for division DX:AX / BX
+    idiv bx             ; -> AX is Quotient, Remainder DX=[0,9]
+    push dx             ;(1) Save remainder for now
+    inc  cx             ;One more digit
+    test ax,ax          ;Is quotient zero?
+    jnz  a  		;No, use as next dividend
+b:
+	pop  dx             ;(1)
+    add  dl,"0"         ;Turn into character [0,9] -> ["0","9"]
+    mov  ah,02h         ;DOS.DisplayCharacter
+    int  21h            ; -> AL
+    loop b
+
+exit_pn:
+	pop dx
+	pop bx
+	pop cx
+	pop ax
+	ret
+endp
 
 ; param 1
 proc PrintString
@@ -1076,7 +1112,7 @@ _ladders:
 	push 4
 	call DRAWLADDER
 
-	; second layer ladder left
+	; second layer ladder right
 	mov [ladder_final_stepdist], 3
 	push 120 ; 7 blocks from left 20 x 7 = 140px
 	push 115
@@ -1084,7 +1120,7 @@ _ladders:
 	push 5
 	call DrawLadder
 	
-	; second layer ladder right
+	; second layer ladder left
 	mov [ladder_final_stepdist], 3
 	push 40 ; three blocks from left 20 x 3 = 60px
 	push 119
@@ -1146,6 +1182,41 @@ proc Delay
 	ret 4
 endp
 
+; ax - TRUE: In Range, ax - FALSE: Not in range 
+; param 1 - number
+; param 2 - min
+; param 3 - max
+proc IsInRange
+	num equ [bp+8]
+	min_bound equ [bp+6]
+	max_bound equ [bp+4]
+
+	push bp
+	mov bp, sp
+	push bx
+	push cx
+	push dx
+
+	mov ax, FALSE
+	mov bx, num
+	
+	cmp bx, min_bound
+	jb _ret_is_in_range
+	
+	cmp bx, max_bound
+	ja _ret_is_in_range
+
+	mov ax, TRUE
+	
+_ret_is_in_range:
+	pop dx
+	pop cx
+	pop bx
+	pop bp
+	
+	ret 6
+endp
+
 ; returns - dx - 1 for in bounds, 0 for out of bounds
 proc CheckIsInBoundsX
 	push ax
@@ -1169,19 +1240,141 @@ _return_check_is_in_bounds:
 	ret
 endp
 
-; returns - dx = 1 for colliding, 0 for not
+; returns - dx = 1 for colliding, 0 for not, 2 for on edge of collision
 proc CheckIsCollidingWithLadder
 	push ax
 	push bx
 	push cx
 	mov dx, 0
-	cmp [mario_x], 268
-	jge colliding
-	jmp _return_check_is_in_bounds
-colliding:
-	cmp [mario_x], 276
-	jg _return_check_is_colliding_with_ladder
+	
+	; check if colliding with first layer ladder
+	
+	push [mario_x]
+	push 268 ; min bound x collision with first layer ladder
+	push 274 ; max bound x collision with first layer ladder
+	call IsInRange
+
+	cmp ax, TRUE
+	jne check_secondlayer_ladder_right
+
+	; check y range for first layer ladder
+	push [mario_y]
+	push 137
+	push 169
+	call IsInRange
+	
+	cmp ax, TRUE
+	jne _return_check_is_colliding_with_ladder
+	cmp [mario_y], 137 ; first layer ladder top
+	je on_edge
+	
 	mov dx, 1
+	jmp _return_check_is_colliding_with_ladder
+	
+	;
+
+check_secondlayer_ladder_right:
+	; check if colliding with second layer first ladder
+	push [mario_x]
+	push 118 ; min bound x collision with second layer ladder 1
+	push 124 ; max bound x collision with second layer ladder 1
+	call IsInRange
+
+	cmp ax, TRUE
+	jne check_secondlayer_ladder_left
+
+	; check y range for second layer ladder right
+	push [mario_y]
+	push 90
+	push 130
+	call IsInRange 
+	
+	cmp ax, TRUE
+	jne _return_check_is_colliding_with_ladder
+	
+	cmp [mario_y], 90
+	je on_edge
+	cmp [mario_y], 91
+	je on_edge
+
+	mov dx, 1
+	jmp _return_check_is_colliding_with_ladder	
+
+check_secondlayer_ladder_left:
+	; check if colliding with second layer second ladder
+	push [mario_x]
+	push 40 ; min bound x collision with second layer ladder 2
+	push 46 ; max bound x collision with second layer ladder 2
+	call IsInRange 
+
+	cmp ax, TRUE
+	jne check_thirdlayer_broken_ladder
+	
+	; check y range for second ladder left
+	push [mario_y]
+	push 94
+	push 126
+	call IsInRange
+	
+	cmp ax, TRUE
+	jne _return_check_is_colliding_with_ladder
+
+	cmp [mario_y], 94
+	je on_edge
+	cmp [mario_y], 95
+	je on_edge
+
+	mov dx, 1
+	jmp _return_check_is_colliding_with_ladder
+check_thirdlayer_broken_ladder:
+	; check if colliding with third layer broken ladder - bottom half
+	push [mario_x]
+	push 160
+	push 166
+	call IsInRange 
+	
+	cmp ax, TRUE
+	jne check_thirdlayer_ladder_right
+
+	; check y range for broken ladder
+	push [mario_y]
+	push 82
+	push 89
+	call IsInRange
+	
+	cmp ax, TRUE
+	jne _return_check_is_colliding_with_ladder
+	
+	cmp [mario_y], 82
+	je on_edge
+	mov dx, 1
+	jmp _return_check_is_colliding_with_ladder
+
+check_thirdlayer_ladder_right:
+	; check if collding with third layer ladder right
+	push [mario_x]
+	push 238
+	push 244
+	call ISINRANGE
+	
+	cmp ax, TRUE
+	jne _return_check_is_colliding_with_ladder
+
+	; check y range for third layer ladder right
+	push [mario_y]
+	push 50
+	push 85
+	call IsInRange 
+	
+	cmp ax, TRUE
+	jne _return_check_is_colliding_with_ladder
+
+	cmp [mario_y], 50
+	je on_edge
+	mov dx, 1
+	jmp _return_check_is_colliding_with_ladder
+on_edge:
+	mov dx, 2
 _return_check_is_colliding_with_ladder:
 	pop cx
 	pop bx
@@ -1256,7 +1449,7 @@ proc SmartMarioElevationHandler
 	jmp _ret_mario_smart_elev
 _elevate:
 	dec [mario_y]
-
+	
 _ret_mario_smart_elev:
 
 	pop si
@@ -1267,63 +1460,40 @@ _ret_mario_smart_elev:
 	ret
 endp
 
-proc MarioElevationHandler
+proc DisplayCharacterCoordinates
 	push ax
 	push bx
 	push cx
 	push dx
-	push si
 	
-	; check for x and y values, raise y depending on direction and x value
-	cmp [mario_direction], RIGHT
-	jne mario_elevation_handler_left
+	cmp [show_coords], TRUE
+	jne _ret_display_coordinates
+	mov ax, [mario_x]
+	call PRINTNUMBER
 
-	; direction = right
-	cmp [mario_x], 178
-	je elevate
-	cmp [mario_x], 198
-	je elevate
-	cmp [mario_x], 218
-	je elevate
-	cmp [mario_x], 238
-	je elevate
-	cmp [mario_x], 258
-	je elevate
-	cmp [mario_x], 278
-	je elevate
-	cmp [mario_x], 298
-	je elevate
-	jmp _return_mario_elevation
+	mov dl, ','
+	mov ah, 2h
+	int 21h
 
-depress:
-	inc [mario_y]
-	jmp _return_mario_elevation
-elevate:
-	dec [mario_y]
-	jmp _return_mario_elevation
-mario_elevation_handler_left:
-	cmp [mario_x], 180
-	je depress ; :(
-	cmp [mario_x], 200
-	je depress ; :(
-	cmp [mario_x], 220
-	je depress ; :(
-	cmp [mario_x], 240
-	je depress ; :(
-	cmp [mario_x], 260
-	je depress ; :(
-	cmp [mario_x], 280
-	je depress ; :(
-	cmp [mario_x], 300
-	je depress ; :(
+	mov dl, ' '
+	mov ah, 2h
+	int 21h
 
-_return_mario_elevation:
-	pop si
+	mov ax, [mario_y]
+	call PrintNumber
+
+	push offset blank
+	call PrintString
+	mov dl, 13
+	mov ah, 2h
+	int 21h	
+
+_ret_display_coordinates:
 	pop dx
-	pop cx
 	pop bx
+	pop cx
 	pop ax
-	ret
+	ret	
 endp
 
 proc GameLoop
@@ -1331,8 +1501,10 @@ proc GameLoop
 	push bx
 	push cx
 	push dx
+
 	; gravity
 wait_for_key:
+	call DisplayCharacterCoordinates
 	cmp [gravity_enabled], FALSE
 	je skip_grav
 	call Gravity
@@ -1395,16 +1567,36 @@ move_mario:
 	add [mario_x], 2
 	jmp _draw
 move_mario_down:
-	cmp dx, TRUE ; check if colliding with ladder
-	jne _draw_climbing_mario
-	; check if in bounds - if on bottom floor, don't move down
 	
-	cmp dx, TRUE ; on ground 
+	cmp dx, FALSE ; check if colliding with ladder
+	je _draw_climbing_mario ; MARIO NOT COLLIDING
+	cmp dx, TRUE
+	je cont_mario_move_down
+	cmp dx,  ON_BOUNDS_EDGE; MARIO ON EDGE OF COLLISION
+	je cont_mario_move_down 
+	jmp _draw_climbing_mario
+cont_mario_move_down:
+	; MARIO IS COLLLIDING WITH LADDER
+	; LADDER GROUND CHECKS - PREVENT MARIO FROM GOING THROUGH THE FLOOR
+
+	lea si, [floor_edges_list]
+ladder_ground_checks:
+	mov ax, [si]
+	cmp ax, 0
+	je ladder_ground_checks_complete
+	cmp ax, [mario_y]
 	je _draw_climbing_mario
+	inc si
+	jmp ladder_ground_checks
+	
+ladder_ground_checks_complete:
 	mov [gravity_enabled], FALSE
 	add [mario_y], 2
 	jmp _draw_climbing_mario
+	
 move_mario_up:
+	cmp dx, ON_BOUNDS_EDGE
+	je _draw_climbing_mario
 	cmp dx, TRUE ; ; check if colliding with ladder
 	jne _draw_climbing_mario
 	mov [gravity_enabled], FALSE
@@ -1516,16 +1708,13 @@ _mario_running3_flipped:
 	push 12 ; mario width
 	call DrawFlippedSprite
 _logic:
-	cmp debug, TRUE
+	cmp [debug], TRUE
 	jne skip_debug
 	mov cx, [mario_x]
 	mov dx, [mario_y]
 	push [color_red]
 	call Drawpixel
 skip_debug:
-	;add dx, 16
-	;push [color_lime]
-	;call DrawPixel
 
 	mov ax, [mario_x]
 	mov [mario_left_leg_x], ax
@@ -1565,8 +1754,12 @@ proc DrawMarioClimbing
 	mov [mario_left_leg_y], ax
 	mov cx, [mario_x]
 	mov dx, [mario_y]
+
+	cmp debug, TRUE
+	jne skip_debug_climbing
 	push [color_red]
 	call Drawpixel
+skip_debug_climbing:
 	pop dx
 	pop cx
 	pop bx
@@ -1582,14 +1775,15 @@ start:
 	call SetMode
 
     call DrawMap
-	
+
+
 	mov [mario_x], 14
 	mov [mario_y], 174
 	mov [mario_right_leg_x], 22
 	mov [mario_right_leg_y], 190
 	call DrawMario
+	
 	call GameLoop
-
 exit:
 	push 0h
 	call SetMode

@@ -53,6 +53,9 @@ WKEY_RELEASED equ 91h
 SKEY_PRESSED equ 1Fh
 SKEY_RELEASED equ 9Fh
 
+XKEY_PRESSED equ 2Dh
+XKEY_RELEASED equ 0ADh
+
 
 	
 ; CONSTANTS ;
@@ -84,6 +87,12 @@ frame_num dw 0
 is_flipped dw FALSE
 is_grounded dw TRUE
 is_climbing db FALSE
+is_moving db FALSE
+is_jumping db FALSE
+can_jump db TRUE
+has_x_been_released db TRUE
+
+jump_pixels dw 0
 
 ; mario position points - most unused
 mario_right_leg_x dw ?
@@ -105,6 +114,12 @@ kte_msg db "Press any key to exit...", 13, 10, '$'
 msg1 db 'Start', '$'
 msg2 db 'Stop', '$'
 
+yes db 'Yes  $'
+no db 'No  $'
+is_moving_msg db 'Is Moving: $'
+can_jump_msg db 'Can Jump: $'
+
+jump_delay dw 4E20h
 
 ; SPRITES ;
 
@@ -436,7 +451,7 @@ testsprite \
 blank db "         $"
 CODESEG
 
-
+; print a 16bit integer on the screen from ax
 proc PrintNumber           
 	push ax
 	push bx
@@ -467,7 +482,8 @@ exit_pn:
 	ret
 endp
 
-; param 1
+; print a string
+; param 1: string offset
 proc PrintString
 	str_offset equ [bp+4]
 	
@@ -488,7 +504,7 @@ proc PrintString
 
 endp
 
-
+; draw a horizontal line
 ; param 1 -  line startX
 ; param 2 - line endX
 ; param 3 - line startY
@@ -522,6 +538,7 @@ hline_drawn:
 	ret 8
 endp
 
+; draw a vertical line
 ; param 1 - line startY
 ; param 2 - line endY
 ; param 3 - line startX
@@ -557,7 +574,7 @@ vline_drawn:
 endp
 
 
-; save pixel 
+; save pixel in DS:saved_pixels 
 ; param 1: pixel x value
 ; param 2: pixel y value
 ; param 3: pixel color
@@ -600,7 +617,7 @@ proc SavePixel
 	ret 6
 endp
 
-
+; draw a singular pixel
 ; param 1 - color
 proc DrawPixel
 	color equ [bp+4]
@@ -628,7 +645,7 @@ proc DrawPixel
 	ret 2
 endp
 
-
+; draw any sprite defined in DS
 ; param 1: sprite matrix ds:offset
 ; param 2: startX
 ; param 3: startY 
@@ -693,6 +710,7 @@ draw_loop_end:
     ret 6
 endp    
 
+; draw a sprite - flipped
 ; param 1: sprite offset
 ; param 2: start X
 ; param 3: start Y
@@ -761,6 +779,7 @@ flipped_draw_loop_end:
     ret 8
 endp
 
+; proc to erase the last sprite drawn
 proc EraseSprite
     push ax
     push bx
@@ -802,6 +821,7 @@ erase_loop:
     ret 
 endp    
 
+; proc to wait for any key press
 proc WaitKey
 	push ax
 	mov ah, 0h
@@ -810,7 +830,7 @@ proc WaitKey
 	ret
 endp
 
-
+; set graphical mode
 ; param - mode 
 ; 0 - text mode 3h
 ; 1 - video mode 13h
@@ -835,6 +855,7 @@ _ret:
 	ret 2
 endp
 
+; sets the cursor position
 ; param 1: cursorx 
 ; param 2: cursory
 proc SetCursorPosition
@@ -859,6 +880,7 @@ proc SetCursorPosition
 	ret 4
 endp
 
+; draws a pink block of floor
 ; param 1 : startX
 ; param 2 : startY
 ; block = 10 x 8
@@ -927,6 +949,7 @@ _middle_chain2:
     ret 4
 endp
 
+; draws a pink block N times
 ; param 1: n
 proc DrawPinkBlockNTimes
 	startX equ [bp+8]
@@ -956,6 +979,7 @@ _draw_n_times_loop:
 	ret	6
 endp
 
+; procedure to draw a ladder
 ; param 1: startX
 ; param 2: startY
 ; param 3: height
@@ -1021,7 +1045,7 @@ _ladder_steps:
 	ret 8
 endp
 
-
+; draws the main map backdrop and ladders
 proc DrawMap
 	push ax
 	push bx
@@ -1157,6 +1181,7 @@ _ladders:
 	ret
 endp
 
+; delay function 
 ; param 1 cx
 ; param 2 dx
 proc Delay
@@ -1182,6 +1207,7 @@ proc Delay
 	ret 4
 endp
 
+; utility function - returns TRUE if min <= x <= max
 ; ax - TRUE: In Range, ax - FALSE: Not in range 
 ; param 1 - number
 ; param 2 - min
@@ -1217,6 +1243,7 @@ _ret_is_in_range:
 	ret 6
 endp
 
+; check if mario is colliding with x bounds of the map
 ; returns - dx - 1 for in bounds, 0 for out of bounds
 proc CheckIsInBoundsX
 	push ax
@@ -1240,6 +1267,7 @@ _return_check_is_in_bounds:
 	ret
 endp
 
+; checks if mario can climb up / down
 ; returns - dx = 1 for colliding, 0 for not, 2 for on edge of collision
 proc CheckIsCollidingWithLadder
 	push ax
@@ -1416,6 +1444,7 @@ _ret_ground_check:
 	ret
 endp
 
+; apply instant gravity to mario
 proc Gravity
 	push ax
 	push bx
@@ -1436,6 +1465,7 @@ _ret_gravity:
 	ret
 endp
 
+; mario elevation handler - checks whether to lift mario a pixel by checking if he is underground
 proc SmartMarioElevationHandler
 	push ax
 	push bx
@@ -1460,12 +1490,17 @@ _ret_mario_smart_elev:
 	ret
 endp
 
+; display character coordinates on screen
 proc DisplayCharacterCoordinates
 	push ax
 	push bx
 	push cx
 	push dx
 	
+	push 0
+	push 0
+	call SetCursorPosition
+
 	cmp [show_coords], TRUE
 	jne _ret_display_coordinates
 	mov ax, [mario_x]
@@ -1496,6 +1531,114 @@ _ret_display_coordinates:
 	ret	
 endp
 
+proc DisplayCanJump
+	push ax
+	push bx
+	push cx
+	push dx
+
+	push 2
+	push 0
+	call SETCURSORPOSITION
+	push offset can_jump_msg
+	call PrintString 
+	cmp [can_jump], TRUE
+	jne display_cant_jump
+	push offset yes 
+	call PrintString
+	jmp _ret_display_can_jump
+
+display_cant_jump:
+	push offset no
+	call PrintString 
+
+_ret_display_can_jump:
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+proc DisplayIsMoving
+	push ax
+	push bx
+	push cx
+	push dx
+
+	push 1
+	push 0
+	call SetCursorPosition
+	push offset is_moving_msg
+	call PrintString
+	cmp [is_moving], TRUE
+	jne not_moving
+	push offset yes
+	call PrintString 
+	jmp _ret_display_moving
+
+not_moving:
+	push offset no
+	call PrintString
+
+_ret_display_moving:
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+proc JumpMario
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
+	push di
+
+	cmp [can_jump], TRUE
+	jne _ret_jump_mario
+	mov [can_jump], FALSE
+	mov cx, 10
+	call DISPLAYCANJUMP
+jump_loop_up:
+	mov [is_jumping], TRUE
+	dec [mario_y]
+	push 00h
+	push [jump_delay]
+	call Delay 
+	call EraseSprite
+	mov [frame_num], 3
+	push [is_flipped]
+	call DrawMario
+
+	loop jump_loop_up
+	mov cx, 10
+jump_loop_down:
+	inc [mario_y]
+	push 00h
+	push [jump_delay]
+	call DELAY
+	call EraseSprite
+	mov [frame_num], 3
+	push [is_flipped]
+	call DrawMario
+	sub [jump_delay], 2000
+	loop jump_loop_down
+	mov [is_jumping], FALSE
+	mov [can_jump], TRUE
+_ret_jump_mario:
+	mov [jump_delay], 4E20h
+	pop di
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
 proc GameLoop
 	push ax
 	push bx
@@ -1504,20 +1647,29 @@ proc GameLoop
 
 	; gravity
 wait_for_key:
+	call DISPLAYCANJUMP
+	call DisplayIsMoving
+	mov [is_moving], FALSE
+	
+	; apply gravity and display player coordinates (or not)
 	call DisplayCharacterCoordinates
 	cmp [gravity_enabled], FALSE
 	je skip_grav
 	call Gravity
 skip_grav:
+	cmp [is_jumping], TRUE
+	je _after_move
+	; get input
 	in al, 64h
 	cmp al, 10b
 	je wait_for_key 
 	in al, 60h
 
+	; check for exit
 	cmp al, ESCKEY ; esc
 	je exit
 
-
+	; check for input
 	cmp al, DKEY_PRESSED ; d
 	mov [mario_direction], RIGHT
 	je move_mario
@@ -1533,27 +1685,41 @@ skip_grav:
 	cmp al, SKEY_PRESSED 
 	mov [mario_direction], DOWN
 	je move_mario
+
+	cmp al, XKEY_RELEASED
+	je x_released
+
+	cmp al, XKEY_PRESSED
+	je jump_mario
+
 	jmp wait_for_key
+x_released:
+	mov [has_x_been_released], TRUE
+	jmp _after_move
 move_mario:
 	; check if in bounds
 	; check direction
 	; move mario by direction
 	call CheckIsInBoundsX
 	cmp dx, TRUE
-	jne _after_move
+	jne _after_move ; not in bounds
 
 	push 00h
 	push 9C40h
 	call Delay ; 0.04 seconds
 
-	call EraseSprite
+	call EraseSprite ; delete mario
+
 	; check for elevation
 	call SmartMarioElevationHandler
 	
+	; check for ladder collision
 	call CheckIsCollidingWithLadder
+
+	; by default, enable gravity
 	mov [gravity_enabled], TRUE
+
 	; move mario
-	
 	cmp [mario_direction], LEFT ; left
 	je move_mario_left
 
@@ -1565,20 +1731,20 @@ move_mario:
 
 	mov [is_flipped], FALSE ; rightt
 	add [mario_x], 2
+	mov [is_moving], TRUE
 	jmp _draw
-move_mario_down:
 	
+; move maior directions
+move_mario_down:
 	cmp dx, FALSE ; check if colliding with ladder
-	je _draw_climbing_mario ; MARIO NOT COLLIDING
-	cmp dx, TRUE
-	je cont_mario_move_down
-	cmp dx,  ON_BOUNDS_EDGE; MARIO ON EDGE OF COLLISION
-	je cont_mario_move_down 
+	ja cont_mario_move_down ; MARIO COLLIDING
+	mov [can_jump], TRUE
 	jmp _draw_climbing_mario
+
 cont_mario_move_down:
 	; MARIO IS COLLLIDING WITH LADDER
 	; LADDER GROUND CHECKS - PREVENT MARIO FROM GOING THROUGH THE FLOOR
-
+	mov [can_jump], FALSE
 	lea si, [floor_edges_list]
 ladder_ground_checks:
 	mov ax, [si]
@@ -1592,19 +1758,32 @@ ladder_ground_checks:
 ladder_ground_checks_complete:
 	mov [gravity_enabled], FALSE
 	add [mario_y], 2
+	mov [is_moving], TRUE
 	jmp _draw_climbing_mario
-	
+
+; move mario up
 move_mario_up:
+	cmp dx, FALSE ; check if colliding with ladder
+	je _draw_climbing_mario ; MARIO NOT COLLIDING
+	mov [can_jump], FALSE
 	cmp dx, ON_BOUNDS_EDGE
 	je _draw_climbing_mario
-	cmp dx, TRUE ; ; check if colliding with ladder
-	jne _draw_climbing_mario
 	mov [gravity_enabled], FALSE
 	sub [mario_y], 2
+	mov [is_moving], TRUE
 	jmp _draw_climbing_mario
+
 move_mario_left:
 	mov [is_flipped], TRUE
 	sub [mario_x], 2
+	mov [is_moving], TRUE
+	jmp _draw
+jump_mario:
+	cmp [has_x_been_released], TRUE
+	jne _after_move
+	mov [has_x_been_released], FALSE
+	call JumpMario
+	jmp _after_move
 _draw:
 	cmp [frame_num], 3
 	jne _skip_reset
@@ -1615,8 +1794,10 @@ _skip_reset:
 	inc [frame_num]
 	jmp _after_move
 _draw_climbing_mario:
+	mov [can_jump], TRUE
 	call DrawMarioClimbing
 _after_move:
+	call DisplayIsMoving
 	jmp wait_for_key
 	pop dx
 	pop cx
@@ -1733,6 +1914,7 @@ skip_debug:
 	ret 2
 endp
 
+
 proc DrawMarioClimbing
 	push ax
 	push bx
@@ -1773,17 +1955,14 @@ start:
 	
 	push 1h
 	call SetMode
-
-    call DrawMap
-
-
+;
+	call DrawMap	
 	mov [mario_x], 14
 	mov [mario_y], 174
-	mov [mario_right_leg_x], 22
-	mov [mario_right_leg_y], 190
-	call DrawMario
-	
+	call DrawMario	
+
 	call GameLoop
+
 exit:
 	push 0h
 	call SetMode

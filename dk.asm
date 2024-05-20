@@ -18,6 +18,7 @@ ma_blue equ 01h
 ma_row_end equ 0FFh
 ma_sp_end equ 0FDh
 ma_nopx equ 0FEh
+ma_orange equ 41d
 ma_mario_skin equ 66d
 ma_mario_hair equ 6d
 ma_yellow equ 44d
@@ -448,8 +449,123 @@ sdonkey_kong \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;6
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_white, ma_red, ma_mario_skin, ma_red, ma_white, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin,\
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;7	
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	    ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;8
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_orange, \ 
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	; 9
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin,ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_orange, ma_orange, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;10
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;11
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;12
+	db ma_nopx, ma_nopx, \
+		ma_orange, ma_red, 	ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+	   ma_nopx, ma_row_end
+	;13
+	db ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_row_end
+	;14
+	db ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_row_end
+	;15
+	db ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_row_end
+	;16
+	db ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_orange, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_orange, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_row_end
+	;17
+	db ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_red, ma_red, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_row_end
+	;18
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;19
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;20
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;21
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_red, ma_red, ma_orange, ma_red, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_red, ma_orange, ma_red, ma_red, ma_orange, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;22
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_red, ma_orange, ma_orange, ma_orange, ma_orange, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_orange, ma_orange, ma_orange, ma_orange, ma_red, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;23
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	; 24
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	; 25
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_red, ma_orange, ma_mario_skin, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 26
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_orange, ma_red, ma_orange, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+	   ma_nopx, ma_nopx, ma_row_end
+	; 27
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	    ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange,  \
+	   ma_nopx, ma_nopx, ma_row_end
+	;28
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	    ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;29
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	    ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	; 30
+	db ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, \
+	   ma_nopx, ma_row_end
+	; 31
+	db ma_nopx, \
+		ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	   	ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_orange, ma_mario_skin, ma_row_end
+	; 32
+	db ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+		ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	   ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_row_end 
 	db ma_sp_end
+	
 sredcube \
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
@@ -1584,7 +1700,7 @@ _ret_display_can_jump:
 	ret
 endp
 
-proc DisplayIsMoving
+proc DisplayIsMoving	
 	push ax
 	push bx
 	push cx
@@ -1982,7 +2098,7 @@ start:
 
 	push offset sdonkey_kong
 	push 2
-	push 30
+	push 32
 	call DrawSprite
 
 	call DrawMap	

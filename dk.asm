@@ -78,6 +78,7 @@ half_pblock_length dw 5
 ; VARS ;
 ladder_stepdist dw ?
 ladder_final_stepdist dw 2
+save_pixel_mechanism_enabled dw TRUE
 
 ; mario coords
 mario_x dw ?
@@ -115,10 +116,14 @@ kte_msg db "Press any key to exit...", 13, 10, '$'
 msg1 db 'Start', '$'
 msg2 db 'Stop', '$'
 
-yes db 'Yes  $'
+yes db 'Yes        $'
 no db 'No  $'
+underground_msg db 'Underground   $'
+inair db 'In Air       $'
+
 is_moving_msg db 'Is Moving: $'
 can_jump_msg db 'Can Jump: $'
+on_ground_msg db 'On Ground: $' 
 
 jump_delay dw 4E20h
 
@@ -565,7 +570,68 @@ sdonkey_kong \
 		ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
 	   ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_row_end 
 	db ma_sp_end
-	
+
+sbarrel_front \
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	; 2
+	db ma_nopx, \
+		ma_blue, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_blue, \
+	   ma_nopx, ma_row_end
+	; 3
+	db ma_red, ma_blue, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_blue, ma_red, ma_row_end
+	; 4
+	db ma_mario_skin, ma_blue, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_blue, ma_mario_skin, ma_row_end
+	; 5
+	db ma_red, ma_blue, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_blue, ma_red, ma_row_end
+	; 6
+	db ma_red, ma_blue, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_blue, ma_red, ma_row_end
+	; 7 
+	db ma_mario_skin, ma_blue, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_blue, ma_mario_skin, ma_row_end
+	; 8 
+	db ma_red, ma_blue, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_blue, ma_red, ma_row_end
+	; 9 
+	db ma_nopx, \
+		ma_blue, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_blue, \
+	   ma_nopx, ma_row_end
+	; 10
+	db ma_nopx, ma_nopx, ma_nopx, \
+		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	db ma_sp_end
+sbarrel_side \
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	; 2
+	db ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_row_end
+	;3
+	db ma_nopx, \
+		ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, \
+	   ma_nopx, ma_row_end
+	; 4
+	db ma_mario_skin, ma_red, ma_red, ma_blue, ma_blue, ma_red, ma_red, ma_blue, ma_red, ma_red, ma_red, ma_mario_skin, ma_row_end
+	; 5
+	db ma_mario_skin, ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_row_end
+	; 6
+	db ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_row_end
+	; 7
+	db ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_blue, ma_blue, ma_red, ma_red, ma_red, ma_mario_skin, ma_row_end
+	;8
+	db ma_nopx, \
+		ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, \
+	   ma_nopx, ma_row_end
+	db ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_row_end
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	db ma_sp_end
+
 sredcube \
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
@@ -816,6 +882,9 @@ draw_loop:
     cmp [byte ptr si], ma_nopx ; check for empty pixel
     je no_px
 
+	
+	cmp [save_pixel_mechanism_enabled], TRUE
+	jne _skip_save_pixel
 	; save pixel
 	mov ah, 0Dh
 	int 10h ; get pixel color
@@ -823,7 +892,7 @@ draw_loop:
 	push dx
 	push ax
 	call SavePixel
-
+_skip_save_pixel:
     push [word ptr si] ; draw pixel
     call DrawPixel
 	
@@ -884,6 +953,8 @@ flipped_draw_loop:
     cmp [byte ptr si], ma_nopx ; check for empty pixel
     je flipped_no_px
 
+	cmp [save_pixel_mechanism_enabled], TRUE
+	jne _flipped_skip_save_pixel
 	; save pixel
 	mov ah, 0Dh
 	int 10h ; get pixel color
@@ -892,6 +963,7 @@ flipped_draw_loop:
 	push ax
 	call SavePixel
 
+_flipped_skip_save_pixel:
     push [word ptr si] ; draw pixel
     call DrawPixel
 	
@@ -1294,7 +1366,7 @@ _ladders:
 	
 	; third layer ladder right	
 	push 240
-	push 75
+	push 74
 	push 26
 	push 4
 	call DrawLadder
@@ -1630,6 +1702,40 @@ _ret_mario_smart_elev:
 	ret
 endp
 
+; display character ground check
+proc DisplayOnGround
+	push ax
+	push bx
+	push cx
+	push dx
+	
+	push 3
+	push 0
+	call SETCURSORPOSITION
+	push offset on_ground_msg
+	call PrintString 
+	call GroundCheck
+	cmp dx, TRUE
+	je display_yes
+	cmp dx, 2h
+	je display_underground
+	push offset inair
+	call PrintString
+	jmp _ret_display_on_ground
+display_yes:
+	push offset yes
+	call PrintString
+	jmp _ret_display_on_ground
+display_underground:
+	push offset underground_msg
+	call PrintString
+_ret_display_on_ground:
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
 ; display character coordinates on screen
 proc DisplayCharacterCoordinates
 	push ax
@@ -1787,6 +1893,8 @@ proc GameLoop
 
 	; gravity
 wait_for_key:
+	 
+	call DisplayOnGround
 	call DISPLAYCANJUMP
 	call DisplayIsMoving
 	mov [is_moving], FALSE
@@ -1852,12 +1960,15 @@ move_mario:
 
 	; check for elevation
 	call SmartMarioElevationHandler
-	
+
+
+
 	; check for ladder collision
 	call CheckIsCollidingWithLadder
 
-	; by default, enable gravity
-	mov [gravity_enabled], TRUE
+	
+
+	
 
 	; move mario
 	cmp [mario_direction], LEFT ; left
@@ -1869,6 +1980,11 @@ move_mario:
 	cmp [mario_direction], DOWN ; down
 	je move_mario_down
 
+	call GROUNDCHECK
+	cmp dx, FALSE
+	je _draw_climbing_mario
+	; by default, enable gravity - unless not on ground
+	mov [gravity_enabled], TRUE
 	mov [is_flipped], FALSE ; rightt
 	add [mario_x], 2
 	mov [is_moving], TRUE
@@ -1876,6 +1992,9 @@ move_mario:
 	
 ; move maior directions
 move_mario_down:
+
+	; by default, enable gravity - unless not on ground
+	mov [gravity_enabled], TRUE
 	cmp dx, FALSE ; check if colliding with ladder
 	ja cont_mario_move_down ; MARIO COLLIDING
 	mov [can_jump], TRUE
@@ -1903,6 +2022,9 @@ ladder_ground_checks_complete:
 
 ; move mario up
 move_mario_up:
+
+	; by default, enable gravity - unless not on ground
+	mov [gravity_enabled], TRUE
 	cmp dx, FALSE ; check if colliding with ladder
 	je _draw_climbing_mario ; MARIO NOT COLLIDING
 	mov [can_jump], FALSE
@@ -1914,6 +2036,11 @@ move_mario_up:
 	jmp _draw_climbing_mario
 
 move_mario_left:
+	call GROUNDCHECK
+	cmp dx, FALSE
+	je _draw_climbing_mario
+	; by default, enable gravity - unless not on ground
+	mov [gravity_enabled], TRUE
 	mov [is_flipped], TRUE
 	sub [mario_x], 2
 	mov [is_moving], TRUE
@@ -2096,11 +2223,19 @@ start:
 	push 1h
 	call SetMode
 
+	mov [save_pixel_mechanism_enabled], FALSE
 	push offset sdonkey_kong
-	push 2
+	push 6
 	push 32
 	call DrawSprite
 
+
+
+	mov [save_pixel_mechanism_enabled], TRUE
+	push offset sbarrel_side
+	push 3
+	push 32
+	call DrawSprite
 	call DrawMap	
 	mov [mario_x], 14
 	mov [mario_y], 174

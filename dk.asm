@@ -9,7 +9,7 @@ STACK 200h
 DATASEG
 
 ; MACROS ;
-; COLORS 
+; COLOR CODES
 ma_white equ 0Fh
 ma_black equ 00h
 ma_red equ 04h
@@ -40,7 +40,7 @@ MARIO_RUNNING_1 equ 0001h
 MARIO_RUNNING_2 equ 0002h
 MARIO_RUNNING_3 equ 0003h
 
-; KEY CODES
+; KEY CODES - SCAN CODES
 ESCKEY equ 1
 DKEY_PRESSED equ 20h
 DKEY_RELEASED equ 0A0h
@@ -57,7 +57,10 @@ SKEY_RELEASED equ 9Fh
 XKEY_PRESSED equ 2Dh
 XKEY_RELEASED equ 0ADh
 
+SPACE_PRESSED equ 19h
+SPACE_RELEASED equ 0B9h
 
+TICKS_1SECOND equ 18 ; 1 second in ticks
 	
 ; CONSTANTS ;
 constants db "Constants"
@@ -94,6 +97,8 @@ is_jumping db FALSE
 can_jump db TRUE
 has_x_been_released db TRUE
 
+is_draw_barrel dw FALSE
+
 jump_pixels dw 0
 
 ; mario position points - most unused
@@ -124,6 +129,11 @@ inair db 'In Air       $'
 is_moving_msg db 'Is Moving: $'
 can_jump_msg db 'Can Jump: $'
 on_ground_msg db 'On Ground: $' 
+
+; barrels
+barrel_x dw ?
+barrel_y dw ?
+barrel_sprite_toggle dw 1 ; 1 for draw, 0 for erase
 
 jump_delay dw 4E20h
 
@@ -624,9 +634,11 @@ sbarrel_side \
 	db ma_nopx, \
 		ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, \
 	   ma_nopx, ma_row_end
+	; 9
 	db ma_nopx, ma_nopx, \
 		ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, \
 	   ma_nopx, ma_nopx, ma_row_end
+	;l0
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
 		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
@@ -650,13 +662,21 @@ testsprite \
 	db ma_white, ma_green, ma_row_end
 	db ma_white, ma_green, ma_row_end
 	db ma_white, ma_white, ma_row_end, ma_sp_end
-	last_sprite_saved_pixels_index dw 0
-	saved_pixels_index dw 0
-	saved_pixels dd 2000 dup(0) ; double word arr - store pixel x y value and color
+
+
+
+saved_pixels_barrel_index dw 0
+saved_pixels_index dw 0
+
+last_sprite_saved_pixels_index dw 0
+saved_pixels dd 2000 dup(0) ; double word arr - store pixel x y value and color
+saved_pixels_barrel dd 2000 dup(0)
 
 blank db "         $"
 CODESEG
 
+
+;;;;; UTILITY FUNCTIONS ;;;;;
 ; print a 16bit integer on the screen from ax
 proc PrintNumber           
 	push ax
@@ -709,6 +729,181 @@ proc PrintString
 	ret 2
 
 endp
+
+; proc to wait for any key press
+proc WaitKey
+	push ax
+	mov ah, 0h
+	int 16h
+	pop ax
+	ret
+endp
+
+; set graphical mode
+; param - mode 
+; 0 - text mode 3h
+; 1 - video mode 13h
+proc SetMode
+	push bp
+	mov bp, sp
+	push ax
+	
+	cmp [word ptr bp+4], 0
+	jne video
+	mov ax, 3h
+	int 10h
+video:
+	cmp [word ptr bp+4], 1
+	jne _ret
+	mov ax, 13h
+	int 10h
+_ret:	
+	pop ax
+	pop bp
+
+	ret 2
+endp
+
+; bios delay function 
+; param 1 cx
+; param 2 dx
+proc Delay
+	cx_param equ [bp+6]
+	dx_param equ [bp+4]
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+	
+	mov cx, cx_param
+	mov dx, dx_param
+	mov ah, 86h ;!!!!! ah not ax you fucker!
+	int 15h
+	
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 4
+endp
+
+; utility function - returns TRUE if min <= x <= max
+; ax - TRUE: In Range, ax - FALSE: Not in range 
+; param 1 - number
+; param 2 - min
+; param 3 - max
+proc IsInRange
+	num equ [bp+8]
+	min_bound equ [bp+6]
+	max_bound equ [bp+4]
+
+	push bp
+	mov bp, sp
+	push bx
+	push cx
+	push dx
+
+	mov ax, FALSE
+	mov bx, num
+	
+	cmp bx, min_bound
+	jb _ret_is_in_range
+	
+	cmp bx, max_bound
+	ja _ret_is_in_range
+
+	mov ax, TRUE
+	
+_ret_is_in_range:
+	pop dx
+	pop cx
+	pop bx
+	pop bp
+	
+	ret 6
+endp
+
+
+; sets the cursor position
+; param 1: cursorx 
+; param 2: cursory
+proc SetCursorPosition
+	cursorx equ [bp+6]
+	cursory equ [bp+4]
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push dx
+	
+	mov ah, 2
+	mov dh, cursorx
+	mov dl, cursory
+	mov bh, 0
+	int 10h
+	
+	pop dx
+	pop bx
+	pop ax
+	pop bp
+	ret 4
+endp
+
+; param 1 - tick timestamp output - memory offset - where to put the timestamp
+proc SetTickTimestamp
+	tick_out_offset equ [bp+4]
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+
+	mov ah, 00h
+    int 1Ah   
+	mov bx, tick_out_offset
+	mov [word ptr bx], dx
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 2
+endp
+
+; param 1 - last tick timestamp - int
+; output: dx - current tick count
+proc GetTickCountFromTimestamp
+	initial_ticks equ [bp+4]
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+
+	mov ah, 00h
+	int 1Ah
+	sub dx, initial_ticks	
+
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 2
+
+endp
+
+
+;;;;; UTILIITY FUNCTIONS ;;;;;
+
+
+
+
+;;;;; GRAPHICAL FUNCTIONS ;;;;;
 
 ; draw a horizontal line
 ; param 1 -  line startX
@@ -779,50 +974,6 @@ vline_drawn:
 	ret 8
 endp
 
-
-; save pixel in DS:saved_pixels 
-; param 1: pixel x value
-; param 2: pixel y value
-; param 3: pixel color
-proc SavePixel 
-	pix_x equ [bp+8]
-	pix_y equ [bp+6]
-	pix_color equ [bp+4]
-	push bp
-	mov bp, sp
-	push ax
-	push bx
-	push cx
-	push dx
-	push si
-
-	lea si, [saved_pixels]
-	mov ax, [saved_pixels_index]
-	mov bx, 5
-	xor dx, dx ; clear dx
-	mul bx
-	add si, ax
-
-    mov ax, pix_x
-	mov [word ptr si], ax
-	add si, 2
-    mov ax, pix_y
-	mov [word ptr si], ax
-    add si, 2
-    mov al, pix_color
-	mov [byte ptr si], al
-
-	inc [saved_pixels_index]
-
-	pop si
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	pop bp
-	ret 6
-endp
-
 ; draw a singular pixel
 ; param 1 - color
 proc DrawPixel
@@ -851,6 +1002,108 @@ proc DrawPixel
 	ret 2
 endp
 
+; save pixel in DS:saved_pixels 
+; param 1: pixel x value
+; param 2: pixel y value
+; param 3: pixel color
+proc SavePixel 
+
+	pix_x equ [bp+8]
+	pix_y equ [bp+6]
+	pix_color equ [bp+4]
+
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
+
+	lea si, [saved_pixels]
+	mov ax, [saved_pixels_index]
+
+
+_save_pixel:
+	mov bx, 5
+	xor dx, dx ; clear dx
+	mul bx
+	add si, ax
+
+    mov ax, pix_x
+	mov [word ptr si], ax
+	add si, 2
+    mov ax, pix_y
+	mov [word ptr si], ax
+    add si, 2
+    mov al, pix_color
+	mov [byte ptr si], al
+
+
+	inc [saved_pixels_index] ; inc normal saved pixels
+_ret_save_pixel:
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 6
+endp
+
+
+; save pixel in DS:saved_pixels 
+; param 1: pixel x value
+; param 2: pixel y value
+; param 3: pixel color
+proc SaveBarrelPixel 
+
+	pix_x equ [bp+8]
+	pix_y equ [bp+6]
+	pix_color equ [bp+4]
+
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
+
+	lea si, [saved_pixels_barrel]
+	mov ax, [saved_pixels_barrel_index]
+
+
+_save_barrel_pixel:
+	mov bx, 5
+	xor dx, dx ; clear dx
+	mul bx
+	add si, ax
+
+    mov ax, pix_x
+	mov [word ptr si], ax
+	add si, 2
+    mov ax, pix_y
+	mov [word ptr si], ax
+    add si, 2
+    mov al, pix_color
+	mov [byte ptr si], al
+
+
+	inc [saved_pixels_barrel_index] ; inc normal saved pixels
+_ret_save_pixel_barrel:
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 6
+endp
+
+
+
+
 ; draw any sprite defined in DS
 ; param 1: sprite matrix ds:offset
 ; param 2: startX
@@ -867,10 +1120,12 @@ proc DrawSprite
     push dx
     push si
 	
+	cmp [is_draw_barrel], TRUE
+	je _skip_save_last_sprite
+
 	mov ax, [saved_pixels_index]
 	mov [last_sprite_saved_pixels_index], ax
-
-
+_skip_save_last_sprite:
     mov cx, startX
     mov dx, startY
     mov si, matrix_of
@@ -885,13 +1140,22 @@ draw_loop:
 	
 	cmp [save_pixel_mechanism_enabled], TRUE
 	jne _skip_save_pixel
-	; save pixel
+
 	mov ah, 0Dh
 	int 10h ; get pixel color
+	cmp [is_draw_barrel], TRUE
+	je save_pixel_barrel
 	push cx
 	push dx
 	push ax
 	call SavePixel
+	jmp _skip_save_pixel
+save_pixel_barrel:
+	push cx
+	push dx
+	push ax
+	call SaveBarrelPixel
+
 _skip_save_pixel:
     push [word ptr si] ; draw pixel
     call DrawPixel
@@ -1033,69 +1297,15 @@ erase_loop:
     ret 
 endp    
 
-; proc to wait for any key press
-proc WaitKey
-	push ax
-	mov ah, 0h
-	int 16h
-	pop ax
-	ret
-endp
+;;;;; GRAPHICAL FUNCTIONS ;;;;;
 
-; set graphical mode
-; param - mode 
-; 0 - text mode 3h
-; 1 - video mode 13h
-proc SetMode
-	push bp
-	mov bp, sp
-	push ax
-	
-	cmp [word ptr bp+4], 0
-	jne video
-	mov ax, 3h
-	int 10h
-video:
-	cmp [word ptr bp+4], 1
-	jne _ret
-	mov ax, 13h
-	int 10h
-_ret:	
-	pop ax
-	pop bp
 
-	ret 2
-endp
-
-; sets the cursor position
-; param 1: cursorx 
-; param 2: cursory
-proc SetCursorPosition
-	cursorx equ [bp+6]
-	cursory equ [bp+4]
-	push bp
-	mov bp, sp
-	push ax
-	push bx
-	push dx
-	
-	mov ah, 2
-	mov dh, cursorx
-	mov dl, cursory
-	mov bh, 0
-	int 10h
-	
-	pop dx
-	pop bx
-	pop ax
-	pop bp
-	ret 4
-endp
+;;;;; MAP ;;;;;
 
 ; draws a pink block of floor
 ; param 1 : startX
 ; param 2 : startY
-; block = 10 x 8
+; block = 10 x8
 proc _DrawSingularPinkBlock
     startX equ [bp+6]
     startY equ [bp+4]
@@ -1393,67 +1603,208 @@ _ladders:
 	ret
 endp
 
-; delay function 
-; param 1 cx
-; param 2 dx
-proc Delay
-	cx_param equ [bp+6]
-	dx_param equ [bp+4]
+;;;;; MAP ;;;;;
+
+;;;;; BARRELS ;;;;;
+
+proc DrawBarrel
+	push ax
+	push bx
+	push cx
+	push dx
+	mov [is_draw_barrel], TRUE
+	push offset sbarrel_side
+	push [barrel_x]
+	push [barrel_y]
+	call DrawSprite
+	mov [is_draw_barrel], FALSE
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+proc EraseBarrel
+	push ax
+	push bx
+	push cx
+	push dx
+
+	
+	lea si, [saved_pixels_barrel]
+	mov bx, [saved_pixels_barrel_index]
+
+erase_barrel_loop:
+	mov cx, [si] ; x
+	add si, 2
+	mov dx, [si] ; y
+	add si, 2
+	mov ah, 0
+	mov al, [byte ptr si]
+	push ax ; color
+	call DrawPixel
+	inc si
+	dec bx
+	jnz erase_barrel_loop
+	mov [saved_pixels_barrel_index], 0
+
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+;;;;; BARRELS ;;;;;
+
+;;;;; PLAYER/MARIO ;;;;;
+
+
+; param flipped ? draw mario flipped or not
+proc DrawMario
+	flipped equ [bp+4]
 	push bp
 	mov bp, sp
 	push ax
 	push bx
 	push cx
 	push dx
+	mov [is_draw_barrel], FALSE
+	cmp [frame_num], MARIO_RUNNING_1
+	je _mario_running1
+	cmp [frame_num], MARIO_RUNNING_2
+	je _mario_running2
+	cmp [frame_num], MARIO_RUNNING_3
+	je _mario_running3
 	
-	mov cx, cx_param
-	mov dx, dx_param
-	mov ah, 86h ;!!!!! ah not ax you fucker!
-	int 15h
-	
+	; STANDING MARIO
+	cmp flipped, TRUE
+	je _mario_standing_flipped
+	push offset smario_standing
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite 
+	jmp _logic
+_mario_standing_flipped:
+	push offset smario_standing
+	push [mario_x]
+	push [mario_y]
+	push 12
+	call DrawFlippedSprite	
+	jmp _logic
+
+	; MARIO RUNNING F1
+_mario_running1:
+	cmp flipped, TRUE
+	je _mario_running1_flipped
+	push offset smario_running_frame_1
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite
+	jmp _logic
+_mario_running1_flipped:
+	push offset smario_running_frame_1
+	push [mario_x]
+	push [mario_y]
+	push 12 ; mario width
+	call DrawFlippedSprite
+	jmp _logic
+
+	; MARIO RUNNING F2
+_mario_running2:
+	cmp flipped, TRUE
+	je _mario_running2_flipped
+	push offset smario_running_frame_2
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite
+	jmp _logic
+_mario_running2_flipped:
+	push offset smario_running_frame_2
+	push [mario_x]
+	push [mario_y]
+	push 12 ; mario width
+	call DrawFlippedSprite
+	jmp _logic
+
+	; MARIO RUNNING F3
+_mario_running3:
+	cmp flipped, TRUE
+	je _mario_running3_flipped
+	push offset smario_running_frame_3
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite
+	jmp _logic
+_mario_running3_flipped:
+	push offset smario_running_frame_3
+	push [mario_x]
+	push [mario_y]
+	push 12 ; mario width
+	call DrawFlippedSprite
+_logic:
+	cmp [debug], TRUE
+	jne skip_debug
+	mov cx, [mario_x]
+	mov dx, [mario_y]
+	push [color_red]
+	call Drawpixel
+skip_debug:
+
+	mov ax, [mario_x]
+	mov [mario_left_leg_x], ax
+	add ax, 12
+	mov [mario_right_leg_x], ax
+	mov ax, [mario_y]
+	add ax, 16
+	mov [mario_right_leg_y], ax
+	mov [mario_left_leg_y], ax
+
 	pop dx
 	pop cx
 	pop bx
 	pop ax
 	pop bp
-	ret 4
+	ret 2
 endp
 
-; utility function - returns TRUE if min <= x <= max
-; ax - TRUE: In Range, ax - FALSE: Not in range 
-; param 1 - number
-; param 2 - min
-; param 3 - max
-proc IsInRange
-	num equ [bp+8]
-	min_bound equ [bp+6]
-	max_bound equ [bp+4]
 
-	push bp
-	mov bp, sp
+proc DrawMarioClimbing
+	push ax
 	push bx
 	push cx
 	push dx
+	mov [is_draw_barrel], FALSE
+	push offset smario_climbing
+	push [mario_x]
+	push [mario_y]
+	call DrawSprite
+	
+	mov ax, [mario_x]
+	mov [mario_left_leg_x], ax
+	add ax, 12
+	mov [mario_right_leg_x], ax
+	mov ax, [mario_y]
+	add ax, 16
+	mov [mario_right_leg_y], ax
+	mov [mario_left_leg_y], ax
+	mov cx, [mario_x]
+	mov dx, [mario_y]
 
-	mov ax, FALSE
-	mov bx, num
-	
-	cmp bx, min_bound
-	jb _ret_is_in_range
-	
-	cmp bx, max_bound
-	ja _ret_is_in_range
-
-	mov ax, TRUE
-	
-_ret_is_in_range:
+	cmp [debug], TRUE
+	jne skip_debug_climbing
+	push [color_red]
+	call Drawpixel
+skip_debug_climbing:
 	pop dx
 	pop cx
 	pop bx
-	pop bp
-	
-	ret 6
+	pop ax
+	ret
 endp
+
 
 ; check if mario is colliding with x bounds of the map
 ; returns - dx - 1 for in bounds, 0 for out of bounds
@@ -1661,6 +2012,7 @@ proc Gravity
 	push ax
 	push bx
 	push cx
+	push dx
 
 
 apply_grav:
@@ -1671,11 +2023,64 @@ apply_grav:
 	jmp apply_grav
 
 _ret_gravity:
+	pop dx
 	pop cx
 	pop bx
 	pop ax
 	ret
 endp
+
+
+proc JumpMario
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
+	push di
+	mov [is_draw_barrel], FALSE
+	cmp [can_jump], TRUE
+	jne _ret_jump_mario
+	mov [can_jump], FALSE
+	mov cx, 10
+	call DISPLAYCANJUMP
+jump_loop_up:
+	mov [is_jumping], TRUE
+	dec [mario_y]
+	push 00h
+	push [jump_delay]
+	call Delay 
+	call EraseSprite
+	mov [frame_num], 3
+	push [is_flipped]
+	call DrawMario
+
+	loop jump_loop_up
+	mov cx, 10
+jump_loop_down:
+	inc [mario_y]
+	push 00h
+	push [jump_delay]
+	call DELAY
+	call EraseSprite
+	mov [frame_num], 3
+	push [is_flipped]
+	call DrawMario
+	sub [jump_delay], 2000
+	loop jump_loop_down
+	mov [is_jumping], FALSE
+	mov [can_jump], TRUE
+_ret_jump_mario:
+	mov [jump_delay], 4E20h
+	pop di
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
 
 ; mario elevation handler - checks whether to lift mario a pixel by checking if he is underground
 proc SmartMarioElevationHandler
@@ -1701,6 +2106,10 @@ _ret_mario_smart_elev:
 	pop ax
 	ret
 endp
+
+;;;;; PLAYER/MARIO ;;;;;;
+
+;;;;; ON-SCREEN DEBUG ;;;;;
 
 ; display character ground check
 proc DisplayOnGround
@@ -1835,76 +2244,38 @@ _ret_display_moving:
 	ret
 endp
 
-proc JumpMario
-	push ax
-	push bx
-	push cx
-	push dx
-	push si
-	push di
+;;;;; ON-SCREEN DEBUG ;;;;;
 
-	cmp [can_jump], TRUE
-	jne _ret_jump_mario
-	mov [can_jump], FALSE
-	mov cx, 10
-	call DISPLAYCANJUMP
-jump_loop_up:
-	mov [is_jumping], TRUE
-	dec [mario_y]
-	push 00h
-	push [jump_delay]
-	call Delay 
-	call EraseSprite
-	mov [frame_num], 3
-	push [is_flipped]
-	call DrawMario
-
-	loop jump_loop_up
-	mov cx, 10
-jump_loop_down:
-	inc [mario_y]
-	push 00h
-	push [jump_delay]
-	call DELAY
-	call EraseSprite
-	mov [frame_num], 3
-	push [is_flipped]
-	call DrawMario
-	sub [jump_delay], 2000
-	loop jump_loop_down
-	mov [is_jumping], FALSE
-	mov [can_jump], TRUE
-_ret_jump_mario:
-	mov [jump_delay], 4E20h
-	pop di
-	pop si
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	ret
-endp
 
 proc GameLoop
 	push ax
 	push bx
 	push cx
 	push dx
-
 	; gravity
 wait_for_key:
-	 
+
+	call EraseBarrel
+	
 	call DisplayOnGround
 	call DISPLAYCANJUMP
 	call DisplayIsMoving
 	mov [is_moving], FALSE
-	
 	; apply gravity and display player coordinates (or not)
 	call DisplayCharacterCoordinates
 	cmp [gravity_enabled], FALSE
 	je skip_grav
 	call Gravity
+
+
+
 skip_grav:
+	call DrawBarrel
+	push 00h
+	push 9C40h
+	call Delay ; 0.04 seconds
+
+	add [barrel_x], 2
 	cmp [is_jumping], TRUE
 	je _after_move
 	; get input
@@ -1912,7 +2283,6 @@ skip_grav:
 	cmp al, 10b
 	je wait_for_key 
 	in al, 60h
-
 	; check for exit
 	cmp al, ESCKEY ; esc
 	je exit
@@ -1952,11 +2322,6 @@ move_mario:
 	cmp dx, TRUE
 	jne _after_move ; not in bounds
 
-	push 00h
-	push 9C40h
-	call Delay ; 0.04 seconds
-
-	call EraseSprite ; delete mario
 
 	; check for elevation
 	call SmartMarioElevationHandler
@@ -1966,9 +2331,8 @@ move_mario:
 	; check for ladder collision
 	call CheckIsCollidingWithLadder
 
-	
 
-	
+	call EraseSprite
 
 	; move mario
 	cmp [mario_direction], LEFT ; left
@@ -2064,151 +2428,10 @@ _draw_climbing_mario:
 	mov [can_jump], TRUE
 	call DrawMarioClimbing
 _after_move:
+
+
 	call DisplayIsMoving
 	jmp wait_for_key
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	ret
-endp
-
-; param flipped ? draw mario flipped or not
-proc DrawMario
-	flipped equ [bp+4]
-	push bp
-	mov bp, sp
-	push ax
-	push bx
-	push cx
-	push dx
-
-	cmp [frame_num], MARIO_RUNNING_1
-	je _mario_running1
-	cmp [frame_num], MARIO_RUNNING_2
-	je _mario_running2
-	cmp [frame_num], MARIO_RUNNING_3
-	je _mario_running3
-	
-	; STANDING MARIO
-	cmp flipped, TRUE
-	je _mario_standing_flipped
-	push offset smario_standing
-	push [mario_x]
-	push [mario_y]
-	call DrawSprite 
-	jmp _logic
-_mario_standing_flipped:
-	push offset smario_standing
-	push [mario_x]
-	push [mario_y]
-	push 12
-	call DrawFlippedSprite	
-	jmp _logic
-
-	; MARIO RUNNING F1
-_mario_running1:
-	cmp flipped, TRUE
-	je _mario_running1_flipped
-	push offset smario_running_frame_1
-	push [mario_x]
-	push [mario_y]
-	call DrawSprite
-	jmp _logic
-_mario_running1_flipped:
-	push offset smario_running_frame_1
-	push [mario_x]
-	push [mario_y]
-	push 12 ; mario width
-	call DrawFlippedSprite
-	jmp _logic
-
-	; MARIO RUNNING F2
-_mario_running2:
-	cmp flipped, TRUE
-	je _mario_running2_flipped
-	push offset smario_running_frame_2
-	push [mario_x]
-	push [mario_y]
-	call DrawSprite
-	jmp _logic
-_mario_running2_flipped:
-	push offset smario_running_frame_2
-	push [mario_x]
-	push [mario_y]
-	push 12 ; mario width
-	call DrawFlippedSprite
-	jmp _logic
-
-	; MARIO RUNNING F3
-_mario_running3:
-	cmp flipped, TRUE
-	je _mario_running3_flipped
-	push offset smario_running_frame_3
-	push [mario_x]
-	push [mario_y]
-	call DrawSprite
-	jmp _logic
-_mario_running3_flipped:
-	push offset smario_running_frame_3
-	push [mario_x]
-	push [mario_y]
-	push 12 ; mario width
-	call DrawFlippedSprite
-_logic:
-	cmp [debug], TRUE
-	jne skip_debug
-	mov cx, [mario_x]
-	mov dx, [mario_y]
-	push [color_red]
-	call Drawpixel
-skip_debug:
-
-	mov ax, [mario_x]
-	mov [mario_left_leg_x], ax
-	add ax, 12
-	mov [mario_right_leg_x], ax
-	mov ax, [mario_y]
-	add ax, 16
-	mov [mario_right_leg_y], ax
-	mov [mario_left_leg_y], ax
-
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	pop bp
-	ret 2
-endp
-
-
-proc DrawMarioClimbing
-	push ax
-	push bx
-	push cx
-	push dx
-	
-	push offset smario_climbing
-	push [mario_x]
-	push [mario_y]
-	call DrawSprite
-	
-	mov ax, [mario_x]
-	mov [mario_left_leg_x], ax
-	add ax, 12
-	mov [mario_right_leg_x], ax
-	mov ax, [mario_y]
-	add ax, 16
-	mov [mario_right_leg_y], ax
-	mov [mario_left_leg_y], ax
-	mov cx, [mario_x]
-	mov dx, [mario_y]
-
-	cmp debug, TRUE
-	jne skip_debug_climbing
-	push [color_red]
-	call Drawpixel
-skip_debug_climbing:
 	pop dx
 	pop cx
 	pop bx
@@ -2232,16 +2455,16 @@ start:
 
 
 	mov [save_pixel_mechanism_enabled], TRUE
-	push offset sbarrel_side
-	push 3
-	push 32
-	call DrawSprite
+
 	call DrawMap	
 	mov [mario_x], 14
 	mov [mario_y], 174
-	call DrawMario	
+	call DrawMario
 
-	
+	mov [barrel_x], 100
+	mov [barrel_y], 100
+	call DrawBarrel
+
 	call GameLoop
 
 exit:

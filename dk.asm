@@ -57,11 +57,11 @@ SKEY_RELEASED equ 9Fh
 XKEY_PRESSED equ 2Dh
 XKEY_RELEASED equ 0ADh
 
-SPACE_PRESSED equ 19h
+SPACE_PRESSED equ 39h
 SPACE_RELEASED equ 0B9h
 
 TICKS_1SECOND equ 18 ; 1 second in ticks
-	
+JUMP_HEIGHT equ 12
 ; CONSTANTS ;
 constants db "Constants"
 color_white dw 000Fh
@@ -99,7 +99,8 @@ has_x_been_released db TRUE
 
 is_draw_barrel dw FALSE
 
-jump_pixels dw 0
+jump_pixels_up dw 0
+jump_pixels_down dw 0
 
 ; mario position points - most unused
 mario_right_leg_x dw ?
@@ -133,7 +134,7 @@ on_ground_msg db 'On Ground: $'
 ; barrels
 barrel_x dw ?
 barrel_y dw ?
-barrel_sprite_toggle dw 1 ; 1 for draw, 0 for erase
+barrel_direction dw RIGHT
 
 jump_delay dw 4E20h
 
@@ -1607,6 +1608,119 @@ endp
 
 ;;;;; BARRELS ;;;;;
 
+; Check pixel under barrel legs for ground color
+; dx: 1 - on ground
+; dx: 0 - in air
+; dx: 2 - underground - used for elevate
+proc BarrelGroundCheck
+	push ax
+	push bx
+	push cx
+	;barrel height 10
+	mov dx, [barrel_y]
+	add dx, 10
+	mov cx, [barrel_x]
+	
+	mov ah, 0Dh ; check pix color
+	int 10h
+	mov dx, 0
+	mov ah, 00
+	cmp ax, [color_pink]
+	je barrel_grounded
+	
+	cmp ax, [color_red]
+	jne _ret_barrel_ground_check
+	mov dx, 2
+	jmp _ret_barrel_ground_check
+barrel_grounded:
+	mov dx, 1
+_ret_barrel_ground_check:
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+; apply instant gravity to barrel
+proc BarrelGravity
+	push ax
+	push bx
+	push cx
+	push dx
+
+
+apply_barrel_grav:
+	call BarrelGroundCheck
+	cmp dx, FALSE
+	jne _ret_barrel_gravity
+	inc [barrel_y]
+	jmp apply_barrel_grav
+
+_ret_barrel_gravity:
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+proc SetBarrelDirection
+	push ax
+	push bx
+	push cx
+	push dx
+	
+	cmp [barrel_x], 304
+	je dirleft
+	cmp [barrel_x], 4
+	je dirright
+	jmp _ret_barrel_direction
+	
+dirleft:
+	mov [barrel_direction], LEFT
+	jmp _ret_barrel_direction
+dirright:
+	mov [barrel_direction], RIGHT
+_ret_barrel_direction:
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+
+	ret
+endp
+
+proc BarrelHandler
+	push ax
+	push bx
+	push cx
+	push dx
+
+	call SetBarrelDirection
+
+move_barrel:
+	cmp [barrel_direction], RIGHT
+	jne move_barrel_left
+	add [barrel_x], 3
+	jmp barrel_gravity
+move_barrel_left:
+	sub [barrel_x], 3
+barrel_gravity:
+	call BARRELGROUNDCHECK
+	mov ax, [barrel_x]
+	push 10
+	push 10
+	call SETCURSORPOSITION
+	call PRINTNUMBER
+	call BarrelGravity
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
 proc DrawBarrel
 	push ax
 	push bx
@@ -2044,13 +2158,16 @@ proc JumpMario
 	mov [can_jump], FALSE
 	mov cx, 10
 	call DISPLAYCANJUMP
+	call EraseBarrel
 jump_loop_up:
+	call DrawBarrel
 	mov [is_jumping], TRUE
 	dec [mario_y]
 	push 00h
 	push [jump_delay]
 	call Delay 
 	call EraseSprite
+
 	mov [frame_num], 3
 	push [is_flipped]
 	call DrawMario
@@ -2058,20 +2175,65 @@ jump_loop_up:
 	loop jump_loop_up
 	mov cx, 10
 jump_loop_down:
+
 	inc [mario_y]
 	push 00h
 	push [jump_delay]
-	call DELAY
+	call Delay
 	call EraseSprite
 	mov [frame_num], 3
 	push [is_flipped]
 	call DrawMario
-	sub [jump_delay], 2000
+	;sub [jump_delay], 2000
 	loop jump_loop_down
 	mov [is_jumping], FALSE
 	mov [can_jump], TRUE
 _ret_jump_mario:
 	mov [jump_delay], 4E20h
+	pop di
+	pop si
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
+endp
+
+proc TryJump
+	push ax
+	push bx
+	push cx
+	push dx
+	push si
+	push di
+
+	cmp [is_jumping], TRUE
+	jne _ret_try_jump
+	; try move up 
+	; check jump pixels up
+	cmp [jump_pixels_up], JUMP_HEIGHT
+	jb try_move_up
+	; jump pixels up = 10, move down
+	cmp [jump_pixels_down], JUMP_HEIGHT
+	jb try_move_down
+	
+	; finished jump
+
+	mov [can_jump], TRUE
+	mov [is_jumping], FALSE
+	mov [jump_pixels_up], 0
+	mov [jump_pixels_down], 0
+	mov [has_x_been_released], TRUE ; this essentially lets you bhop
+
+	jmp _ret_try_jump
+try_move_up:
+	dec [mario_y]
+	inc [jump_pixels_up]
+	jmp _ret_try_jump
+try_move_down:
+	inc [mario_y]
+	inc [jump_pixels_down]
+_ret_try_jump:
 	pop di
 	pop si
 	pop dx
@@ -2255,10 +2417,8 @@ proc GameLoop
 	; gravity
 wait_for_key:
 
-	call EraseBarrel
-	
 	call DisplayOnGround
-	call DISPLAYCANJUMP
+	call DisplayCanJump
 	call DisplayIsMoving
 	mov [is_moving], FALSE
 	; apply gravity and display player coordinates (or not)
@@ -2267,17 +2427,26 @@ wait_for_key:
 	je skip_grav
 	call Gravity
 
-
-
 skip_grav:
-	call DrawBarrel
-	push 00h
-	push 9C40h
-	call Delay ; 0.04 seconds
 
-	add [barrel_x], 2
-	cmp [is_jumping], TRUE
-	je _after_move
+	call TryJump ; try to move mario if he is jumping
+	call EraseBarrel ; erase barrel
+	call DrawBarrel ; redraw barrel + after barrelx++
+	
+	push 00h
+	push 6D60h
+	call Delay ; 0.035 seconds
+
+	call BarrelHandler
+	cmp [is_jumping], TRUE ; if jumping
+	jne not_jumping
+	call EraseSprite ; redraw mario
+	mov [frame_num], 3
+	push [is_flipped]
+	call DrawMario
+	jmp skip_grav	
+
+not_jumping:
 	; get input
 	in al, 64h
 	cmp al, 10b
@@ -2304,10 +2473,10 @@ skip_grav:
 	mov [mario_direction], DOWN
 	je move_mario
 
-	cmp al, XKEY_RELEASED
+	cmp al, SPACE_RELEASED
 	je x_released
 
-	cmp al, XKEY_PRESSED
+	cmp al, SPACE_PRESSED
 	je jump_mario
 
 	jmp wait_for_key
@@ -2344,7 +2513,7 @@ move_mario:
 	cmp [mario_direction], DOWN ; down
 	je move_mario_down
 
-	call GROUNDCHECK
+	call GroundCheck
 	cmp dx, FALSE
 	je _draw_climbing_mario
 	; by default, enable gravity - unless not on ground
@@ -2400,7 +2569,7 @@ move_mario_up:
 	jmp _draw_climbing_mario
 
 move_mario_left:
-	call GROUNDCHECK
+	call GroundCheck
 	cmp dx, FALSE
 	je _draw_climbing_mario
 	; by default, enable gravity - unless not on ground
@@ -2413,7 +2582,8 @@ jump_mario:
 	cmp [has_x_been_released], TRUE
 	jne _after_move
 	mov [has_x_been_released], FALSE
-	call JumpMario
+	; call JumpMario
+	mov [is_jumping], TRUE
 	jmp _after_move
 _draw:
 	cmp [frame_num], 3
@@ -2461,8 +2631,8 @@ start:
 	mov [mario_y], 174
 	call DrawMario
 
-	mov [barrel_x], 100
-	mov [barrel_y], 100
+	mov [barrel_x], 10
+	mov [barrel_y], 54
 	call DrawBarrel
 
 	call GameLoop

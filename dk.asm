@@ -13,6 +13,7 @@ DATASEG
 ma_white equ 0Fh
 ma_black equ 00h
 ma_red equ 04h
+ma_dred equ 39
 ma_green equ 02h
 ma_blue equ 01h
 ma_row_end equ 0FFh
@@ -20,8 +21,10 @@ ma_sp_end equ 0FDh
 ma_nopx equ 0FEh
 ma_orange equ 41d
 ma_mario_skin equ 66d
+ma_donkey_skin equ 43
 ma_mario_hair equ 6d
 ma_yellow equ 44d
+ma_pink equ 38d
 ma_boots equ ma_mario_hair
 
 ; conditions
@@ -61,7 +64,7 @@ SPACE_PRESSED equ 39h
 SPACE_RELEASED equ 0B9h
 
 TICKS_1SECOND equ 18 ; 1 second in ticks
-JUMP_HEIGHT equ 12
+JUMP_HEIGHT equ 8
 ; CONSTANTS ;
 constants db "Constants"
 color_white dw 000Fh
@@ -108,11 +111,15 @@ mario_right_leg_y dw ?
 mario_left_leg_x dw ?
 mario_left_leg_y dw ?
 
+mario_right_hand dw ?
+mario_left_hand dw ?
+
+
 gravity_enabled dw 1
 
 ; debug configuration
 debug db 0
-show_coords db 1
+show_coords db 0
 
 ; list of y coords to check when colliding with ladder but on floor - so mario doesn't fall through - terminated with 0
 floor_edges_list dw 169, 129, 130, 125, 126, 88, 84, 85, 0
@@ -131,6 +138,7 @@ is_moving_msg db 'Is Moving: $'
 can_jump_msg db 'Can Jump: $'
 on_ground_msg db 'On Ground: $' 
 
+gameover_msg db 'Game Over!', 13, 10, '$'
 ; barrels
 barrel_x dw ?
 barrel_y dw ?
@@ -139,7 +147,44 @@ barrel_direction dw RIGHT
 jump_delay dw 4E20h
 
 ; SPRITES ;
-
+s_princess \
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	   ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_row_end
+	;2
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	   ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_row_end
+	;3
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx,  \
+	   ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_white, ma_white, ma_white, ma_white, ma_nopx, ma_row_end
+	; 4
+	db ma_nopx, \
+	   ma_mario_skin, ma_mario_skin, ma_nopx, ma_nopx, ma_nopx, ma_mario_skin, ma_mario_skin, ma_white, ma_mario_skin, ma_white, ma_white, ma_black, ma_white, ma_white, ma_row_end
+	;5
+	db ma_nopx, ma_nopx, \
+	   ma_mario_skin, ma_mario_skin, ma_nopx, ma_nopx, ma_nopx, ma_mario_skin, ma_mario_skin, ma_white, ma_white, ma_white, ma_white, ma_white, ma_nopx, ma_row_end
+	; 6
+	db ma_nopx, ma_nopx, ma_nopx,  \
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_white, ma_white, ma_white, ma_white, ma_white, ma_nopx, ma_nopx, ma_row_end
+	; 7
+	db ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_pink, ma_pink, ma_white, ma_white, ma_white,\
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	; 8
+	db ma_nopx, ma_nopx, \
+		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_pink, ma_pink, ma_pink, ma_white, ma_white, ma_pink, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;9
+	db ma_nopx, ma_mario_skin, ma_nopx, ma_mario_skin, ma_nopx, ma_nopx, ma_pink, ma_pink, ma_pink, ma_pink, ma_pink, ma_pink, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;10
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_pink, ma_pink, ma_pink, ma_pink, ma_pink, \
+	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
+	;11
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+	    ma_pink, ma_pink, ma_pink, ma_pink, ma_pink, ma_pink, ma_pink, ma_white, ma_white, ma_row_end
+	;12
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_black, ma_black, ma_black, ma_pink, ma_pink, ma_pink, ma_white, ma_nopx, ma_row_end
+	db ma_sp_end
 
 smario_standing \
 	db ma_nopx, ma_nopx, ma_nopx,  \ ; 3 empty
@@ -445,141 +490,141 @@ smario_climbing \
 	db ma_sp_end
 sdonkey_kong \
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	   ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end 
 	; 2
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \ 
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;3
-	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_red, \
+	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, 	ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
+		ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;4
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;5
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_white, ma_white, ma_mario_skin, ma_white, ma_white, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, \
+		ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_white, ma_white, ma_donkey_skin, ma_white, ma_white, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;6
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_white, ma_red, ma_mario_skin, ma_red, ma_white, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin,\
+		ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_white, ma_dred, ma_donkey_skin, ma_dred, ma_white, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin,\
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;7	
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-	    ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	    ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;8
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_orange, \ 
+		ma_orange, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_orange, \ 
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	; 9
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin,ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_orange, ma_orange, \
+		ma_orange, ma_orange, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin,ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_orange, ma_orange, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;10
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+		ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;11
 	db ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, \
+		ma_orange, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_orange, \
 	   ma_nopx, ma_nopx, ma_row_end
 	;12
 	db ma_nopx, ma_nopx, \
-		ma_orange, ma_red, 	ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+		ma_orange, ma_dred, 	ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, \
 	   ma_nopx, ma_row_end
 	;13
 	db ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_row_end
 	;14
 	db ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_row_end
 	;15
 	db ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_orange, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_orange, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_row_end
 	;16
 	db ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_orange, ma_orange, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_orange, ma_orange, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_orange, ma_orange, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_orange, ma_orange, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_row_end
 	;17
 	db ma_nopx, ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_red, ma_red, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_dred, ma_dred, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_row_end
 	;18
 	db ma_nopx, ma_nopx, ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_row_end
 	;19
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;20
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;21
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_red, ma_red, ma_orange, ma_red, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_red, ma_orange, ma_red, ma_red, ma_orange, \
+		ma_orange, ma_dred, ma_dred, ma_orange, ma_dred, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_dred, ma_orange, ma_dred, ma_dred, ma_orange, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;22
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_red, ma_orange, ma_orange, ma_orange, ma_orange, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_orange, ma_orange, ma_orange, ma_orange, ma_red, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+		ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_dred, ma_orange, ma_orange, ma_orange, ma_orange, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_orange, ma_orange, ma_orange, ma_orange, ma_dred, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;23
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+		ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	; 24
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+		ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_donkey_skin, ma_orange, ma_donkey_skin, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_donkey_skin, ma_orange, ma_donkey_skin, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	; 25
 	db ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_orange, ma_mario_skin, ma_red, ma_orange, ma_mario_skin, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+		ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_donkey_skin, ma_orange, ma_donkey_skin, ma_orange, ma_donkey_skin, ma_dred, ma_orange, ma_donkey_skin, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, \
 	   ma_nopx, ma_nopx, ma_row_end
 	; 26
 	db ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_orange, ma_red, ma_orange, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange, \
+		ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, ma_dred, ma_dred, ma_orange, ma_dred, ma_orange, ma_dred, ma_dred, ma_orange, ma_dred, ma_dred, ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange, \
 	   ma_nopx, ma_nopx, ma_row_end
 	; 27
 	db ma_nopx, ma_nopx, ma_nopx, \
-		ma_orange, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_orange, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-	    ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_orange,  \
+	    ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_orange,  \
 	   ma_nopx, ma_nopx, ma_row_end
 	;28
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-	    ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	    ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	;29
 	db ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+		ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-	    ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, ma_red, \
+	    ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, ma_dred, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	; 30
 	db ma_nopx, ma_nopx, \
-		ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, \
+		ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-		ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_red, ma_red, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, \
+		ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_dred, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, \
 	   ma_nopx, ma_row_end
 	; 31
 	db ma_nopx, \
-		ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, \
+		ma_donkey_skin, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-	   	ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_red, ma_mario_skin, ma_mario_skin, ma_orange, ma_mario_skin, ma_row_end
+	   	ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_dred, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_donkey_skin, ma_row_end
 	; 32
-	db ma_mario_skin, ma_orange, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, \
+	db ma_donkey_skin, ma_orange, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, \
 		ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_nopx, \
-	   ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_mario_skin, ma_orange, ma_row_end 
+	   ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_donkey_skin, ma_orange, ma_row_end 
 	db ma_sp_end
 
 sbarrel_front \
@@ -645,6 +690,7 @@ sbarrel_side \
 	   ma_nopx, ma_nopx, ma_nopx, ma_nopx, ma_row_end
 	db ma_sp_end
 
+
 sredcube \
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
 	db ma_red, ma_red, ma_red, ma_red, ma_row_end
@@ -674,6 +720,8 @@ saved_pixels dd 2000 dup(0) ; double word arr - store pixel x y value and color
 saved_pixels_barrel dd 2000 dup(0)
 
 blank db "         $"
+game_over dw FALSE
+map_redraw_counter dw 0
 CODESEG
 
 
@@ -1708,10 +1756,7 @@ move_barrel_left:
 barrel_gravity:
 	call BARRELGROUNDCHECK
 	mov ax, [barrel_x]
-	push 10
-	push 10
-	call SETCURSORPOSITION
-	call PRINTNUMBER
+	
 	call BarrelGravity
 
 	pop dx
@@ -1750,20 +1795,33 @@ proc EraseBarrel
 	mov bx, [saved_pixels_barrel_index]
 
 erase_barrel_loop:
+
 	mov cx, [si] ; x
 	add si, 2
 	mov dx, [si] ; y
 	add si, 2
 	mov ah, 0
 	mov al, [byte ptr si]
+
+	; if not cyan or black
+	; colliding with mario
+	cmp ax, ma_blue
+	je _colliding_with_barrel
+	cmp ax, ma_mario_skin
+	je _colliding_with_barrel
+	cmp ax, ma_boots
+	je _colliding_with_barrel
+redraw:
 	push ax ; color
 	call DrawPixel
 	inc si
 	dec bx
 	jnz erase_barrel_loop
 	mov [saved_pixels_barrel_index], 0
-
-
+	jmp _ret_erase_barrel
+_colliding_with_barrel:
+	jmp exit
+_ret_erase_barrel:
 	pop dx
 	pop cx
 	pop bx
@@ -1871,6 +1929,7 @@ skip_debug:
 	mov [mario_left_leg_x], ax
 	add ax, 12
 	mov [mario_right_leg_x], ax
+	mov cx, [mario_right_leg_x]
 	mov ax, [mario_y]
 	add ax, 16
 	mov [mario_right_leg_y], ax
@@ -2087,6 +2146,74 @@ _return_check_is_colliding_with_ladder:
 	ret
 endp
 
+
+;proc CheckCollidingWithBarrel
+	;push ax
+	;push bx
+	;push cx
+	;push si
+	;
+	;mov dx, 0
+	;lea si, [saved_pixels_barrel]
+	;mov bx, [saved_pixels_barrel_index]
+	;add si, 3
+	
+;_saved_pixels_loop:
+	;mov ax, [si]
+	;mov al, ah
+	;mov ah, 0
+	;push 10
+	;push 10
+	;call SETCURSORPOSITION
+	;call PrintNumber
+	;push offset blank
+	;call PrintString
+	;cmp ax, ma_blue
+	;je _colliding_with_barrel
+	;cmp ax, ma_red
+	;je _colliding_with_barrel
+	;cmp ax, ma_mario_skin
+	;je _colliding_with_barrel
+	;cmp ax, ma_boots
+	;je _colliding_with_barrel
+	;dec bx
+	;jnz _saved_pixels_loop
+;
+	;lea si, [saved_pixels]
+	;mov bx, [saved_pixels_index]
+	;add si, 3
+;_saved_pixels_normal_loop:
+	;mov ax, [si]
+	;mov al, ah
+	;mov ah, 0
+	;push 10
+	;push 11
+	;call SETCURSORPOSITION
+	;call PrintNumber
+	;push offset blank
+	;call PrintString
+	;cmp ax, ma_blue
+	;je _colliding_with_barrel
+	;cmp ax, ma_red
+	;je _colliding_with_barrel
+	;cmp ax, ma_mario_skin
+	;je _colliding_with_barrel
+	;cmp ax, ma_boots
+	;je _colliding_with_barrel
+	;dec bx
+	;jnz _saved_pixels_normal_loop
+	;jmp _ret_check_colliding_with_barrel
+
+;_colliding_with_barrel:
+;	mov dx, 1
+;_ret_check_colliding_with_barrel:
+;	pop si
+;	pop cx
+;	pop bx
+;	pop ax
+;	ret
+;endp
+
 ; Check pixel under mario's legs for ground color
 ; dx: 1 - on ground
 ; dx: 0 - in air
@@ -2227,11 +2354,11 @@ proc TryJump
 
 	jmp _ret_try_jump
 try_move_up:
-	dec [mario_y]
+	sub [mario_y], 2
 	inc [jump_pixels_up]
 	jmp _ret_try_jump
 try_move_down:
-	inc [mario_y]
+	add [mario_y], 2
 	inc [jump_pixels_down]
 _ret_try_jump:
 	pop di
@@ -2417,12 +2544,16 @@ proc GameLoop
 	; gravity
 wait_for_key:
 
+	cmp debug, TRUE
+	jne skip_print_debug
 	call DisplayOnGround
 	call DisplayCanJump
 	call DisplayIsMoving
 	mov [is_moving], FALSE
 	; apply gravity and display player coordinates (or not)
 	call DisplayCharacterCoordinates
+skip_print_debug:
+	mov [is_moving], FALSE
 	cmp [gravity_enabled], FALSE
 	je skip_grav
 	call Gravity
@@ -2599,9 +2730,20 @@ _draw_climbing_mario:
 	call DrawMarioClimbing
 _after_move:
 
-
+	cmp debug, TRUE
+	jne wait_for_key
 	call DisplayIsMoving
 	jmp wait_for_key
+
+game_is_over:
+	mov ax, [mario_x]
+	mov [barrel_x], ax
+	jmp wait_for_key
+	;push 1	
+	;call SetMode
+	;push offset gameover_msg
+	;call PrintString
+	;call WaitKey
 	pop dx
 	pop cx
 	pop bx
@@ -2622,6 +2764,10 @@ start:
 	push 32
 	call DrawSprite
 
+	push offset s_princess
+	push 170
+	push 4
+	call DrawSprite
 
 
 	mov [save_pixel_mechanism_enabled], TRUE
@@ -2631,9 +2777,15 @@ start:
 	mov [mario_y], 174
 	call DrawMario
 
-	mov [barrel_x], 10
-	mov [barrel_y], 54
+	mov [barrel_x], 16
+	mov [barrel_y], 10
 	call DrawBarrel
+	mov [barrel_direction], RIGHT
+	
+
+	lea si, [saved_pixels] ; just so i know where they are in memory for debugging
+	lea di, [saved_pixels_barrel]
+
 
 	call GameLoop
 

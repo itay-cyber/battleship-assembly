@@ -66,6 +66,14 @@ SPACE_RELEASED equ 0B9h
 TICKS_1SECOND equ 18 ; 1 second in ticks
 JUMP_HEIGHT equ 8
 ; CONSTANTS ;
+filename db 'test.bmp',0
+filehandle dw ?
+Header db 54 dup (0)
+Palette db 256*4 dup (0)
+ScrLine db 320 dup (0)
+ErrorMsg db 'Error', 13, 10 ,'$'
+
+
 constants db "Constants"
 color_white dw 000Fh
 color_green dw 000Ah
@@ -114,7 +122,7 @@ mario_left_leg_y dw ?
 mario_right_hand dw ?
 mario_left_hand dw ?
 
-
+respawn_count dw 3
 gravity_enabled dw 1
 
 ; debug configuration
@@ -778,6 +786,108 @@ proc PrintString
 	ret 2
 
 endp
+
+
+
+proc OpenFile
+	; Open file
+	mov ah, 3Dh
+	xor al, al
+	mov dx, offset filename
+	int 21h
+	jc openerror
+	mov [filehandle], ax
+	ret
+	openerror :
+	mov dx, offset ErrorMsg
+	mov ah, 9h
+	int 21h
+	ret
+endp OpenFile
+
+proc ReadHeader
+	; Read BMP file header, 54 bytes
+	mov ah,3fh
+	mov bx, [filehandle]
+	mov cx,54
+	mov dx,offset Header
+	int 21h
+	ret
+	endp ReadHeader
+	proc ReadPalette
+	; Read BMP file color palette, 256 colors * 4 bytes (400h)
+	mov ah,3fh
+	mov cx,400h
+	mov dx,offset Palette
+	int 21h
+	ret
+endp ReadPalette
+
+proc CopyPal
+	; Copy the colors palette to the video memory
+	; The number of the first color should be sent to port 3C8h
+	; The palette is sent to port 3C9h
+	mov si,offset Palette
+	mov cx,256
+	mov dx,3C8h
+	mov al,0
+	; Copy starting color to port 3C8h
+	out dx,al
+	; Copy palette itself to port 3C9h
+	inc dx
+	PalLoop:
+	; Note: Colors in a BMP file are saved as BGR values rather than RGB .
+	mov al,[si+2] ; Get red value .
+	shr al,2 ; Max. is 255, but video palette maximal
+	; value is 63. Therefore dividing by 4.
+	out dx,al ; Send it .
+	mov al,[si+1] ; Get green value .
+	shr al,2
+	out dx,al ; Send it .
+	mov al,[si] ; Get blue value .
+	shr al,2
+	out dx,al ; Send it .
+	add si,4 ; Point to next color .
+	; (There is a null chr. after every color.)
+	loop PalLoop
+	ret
+endp CopyPal
+proc CopyBitmap
+	; BMP graphics are saved upside-down .
+	; Read the graphic line by line (200 lines in VGA format),
+	; displaying the lines from bottom to top.
+	mov ax, 0A000h
+	mov es, ax
+	mov cx,200
+	PrintBMPLoop :
+	push cx
+	; di = cx*320, point to the correct screen line
+	mov di,cx
+	shl cx,6
+	shl di,8
+	add di,cx
+	; Read one line
+	mov ah,3fh
+	mov cx,320
+	mov dx,offset ScrLine
+	int 21h
+	; Copy one line into video memory
+	cld ; Clear direction flag, for movsb
+	mov cx,320
+	mov si,offset ScrLine
+	
+	rep movsb ; Copy line to the screen
+	 ;rep movsb is same as the following code :
+	 ;mov es:di, ds:si
+	 ;inc si
+	 ;inc di
+	 ;dec cx
+	;loop until cx=0
+	pop cx
+	loop PrintBMPLoop
+	ret
+endp CopyBitmap
+
 
 ; proc to wait for any key press
 proc WaitKey
@@ -1820,7 +1930,9 @@ redraw:
 	mov [saved_pixels_barrel_index], 0
 	jmp _ret_erase_barrel
 _colliding_with_barrel:
-	jmp exit
+
+	dec [respawn_count]
+	jnz _restart_game
 _ret_erase_barrel:
 	pop dx
 	pop cx
@@ -2758,17 +2870,25 @@ start:
 	push 1h
 	call SetMode
 
+	call OpenFile
+	call ReadHeader
+	call ReadPalette
+	call CopyPal
+	call CopyBitmap
+
+	mov ah,1
+	int 21h
+	push 0h
+	call SETMODE
+_restart_game:
+	push 1h
+	call SetMode
+	
 	mov [save_pixel_mechanism_enabled], FALSE
 	push offset sdonkey_kong
 	push 6
 	push 32
 	call DrawSprite
-
-	push offset s_princess
-	push 170
-	push 4
-	call DrawSprite
-
 
 	mov [save_pixel_mechanism_enabled], TRUE
 

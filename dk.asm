@@ -126,8 +126,8 @@ respawn_count dw 3
 gravity_enabled dw 1
 
 ; debug configuration
-debug db 0
-show_coords db 0
+debug db 1
+show_coords db 1
 
 ; list of y coords to check when colliding with ladder but on floor - so mario doesn't fall through - terminated with 0
 floor_edges_list dw 169, 129, 130, 125, 126, 88, 84, 85, 0
@@ -720,6 +720,28 @@ testsprite \
 
 
 
+GameEnded    	 db '      _ _ _ _           _ _            _      _      _ _ _ _                   ',10,13
+		         db '     |                 /    \         | \    / |    |                          ',10,13
+		         db '     |                /      \        |  \  /  |    |                          ',10,13
+		         db '     |    _ _        /        \       |   \/   |    |_ _ _ _                   ',10,13
+		         db '     |       |      /-- -- -- -\      |        |    |                          ',10,13
+		         db '     |       |     /            \     |        |    |                          ',10,13
+		         db '     |_ _ _ _|    /              \    |        |    |_ _ _ _                   ',10,13
+		         db '                                                                               ',10,13
+                 db '                          _ _ _ _ _                      _ _ _       _ _ _     ',10,13
+		         db '                         |         |    \          /    |           |     |    ',10,13
+		         db '                         |         |     \        /     |           |     |    ',10,13
+		         db '                         |         |      \      /      |_ _ _      |_ _ _|    ',10,13
+		         db '                         |         |       \    /       |           |    \     ',10,13
+		         db '                         |         |        \  /        |           |     \    ',10,13
+		         db '                         |_ _ _ _ _|         \/         |_ _ _      |      \   ',10,13                                                                                
+		         db '                                                                               ',10,13
+		         db '                                                                               ',10,13,'$'
+			
+YouWin 			db '_   _ ____ _  _    _ _ _ _ _  _   /', 10, 13
+				db ' \_/  |  | |  |    | | | | |\ |  / ', 10, 13
+				db '  |   |__| |__|    |_|_| | | \| .  ', 10, 13, '$'
+
 saved_pixels_barrel_index dw 0
 saved_pixels_index dw 0
 
@@ -813,8 +835,8 @@ proc ReadHeader
 	mov dx,offset Header
 	int 21h
 	ret
-	endp ReadHeader
-	proc ReadPalette
+endp ReadHeader
+proc ReadPalette
 	; Read BMP file color palette, 256 colors * 4 bytes (400h)
 	mov ah,3fh
 	mov cx,400h
@@ -1009,51 +1031,6 @@ proc SetCursorPosition
 	pop ax
 	pop bp
 	ret 4
-endp
-
-; param 1 - tick timestamp output - memory offset - where to put the timestamp
-proc SetTickTimestamp
-	tick_out_offset equ [bp+4]
-	push bp
-	mov bp, sp
-	push ax
-	push bx
-	push cx
-	push dx
-
-	mov ah, 00h
-    int 1Ah   
-	mov bx, tick_out_offset
-	mov [word ptr bx], dx
-
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-	pop bp
-	ret 2
-endp
-
-; param 1 - last tick timestamp - int
-; output: dx - current tick count
-proc GetTickCountFromTimestamp
-	initial_ticks equ [bp+4]
-	push bp
-	mov bp, sp
-	push ax
-	push bx
-	push cx
-
-	mov ah, 00h
-	int 1Ah
-	sub dx, initial_ticks	
-
-	pop cx
-	pop bx
-	pop ax
-	pop bp
-	ret 2
-
 endp
 
 
@@ -1838,6 +1815,13 @@ dirleft:
 	mov [barrel_direction], LEFT
 	jmp _ret_barrel_direction
 dirright:
+	cmp [barrel_y], 180
+	je respawn_barrel
+	mov [barrel_direction], RIGHT
+	jmp _ret_barrel_direction
+respawn_barrel:
+	mov [barrel_x], 16
+	mov [barrel_y], 10
 	mov [barrel_direction], RIGHT
 _ret_barrel_direction:
 	pop dx
@@ -1931,8 +1915,14 @@ redraw:
 	jmp _ret_erase_barrel
 _colliding_with_barrel:
 
-	dec [respawn_count]
-	jnz _restart_game
+	push 0h
+	call SetMode
+	push offset GameEnded
+	call PrintString
+	push 0Fh
+	push 4240h
+	call Delay
+	jmp exit
 _ret_erase_barrel:
 	pop dx
 	pop cx
@@ -2029,13 +2019,7 @@ _mario_running3_flipped:
 	push 12 ; mario width
 	call DrawFlippedSprite
 _logic:
-	cmp [debug], TRUE
-	jne skip_debug
-	mov cx, [mario_x]
-	mov dx, [mario_y]
-	push [color_red]
-	call Drawpixel
-skip_debug:
+
 
 	mov ax, [mario_x]
 	mov [mario_left_leg_x], ax
@@ -2077,12 +2061,7 @@ proc DrawMarioClimbing
 	mov [mario_left_leg_y], ax
 	mov cx, [mario_x]
 	mov dx, [mario_y]
-
-	cmp [debug], TRUE
-	jne skip_debug_climbing
-	push [color_red]
-	call Drawpixel
-skip_debug_climbing:
+	
 	pop dx
 	pop cx
 	pop bx
@@ -2508,6 +2487,22 @@ _ret_mario_smart_elev:
 	ret
 endp
 
+proc CheckForWin
+	push ax
+	push bx
+	push cx
+	mov dx, 0
+	cmp [mario_y], 50
+	jne _ret_check_for_win
+	mov dx, 1
+_ret_check_for_win:
+	pop cx
+	pop bx
+	pop ax
+
+	ret
+endp
+
 ;;;;; PLAYER/MARIO ;;;;;;
 
 ;;;;; ON-SCREEN DEBUG ;;;;;
@@ -2656,6 +2651,9 @@ proc GameLoop
 	; gravity
 wait_for_key:
 
+	call CheckForWin
+	cmp dx, TRUE
+	je win
 	cmp debug, TRUE
 	jne skip_print_debug
 	call DisplayOnGround
@@ -2851,6 +2849,19 @@ game_is_over:
 	mov ax, [mario_x]
 	mov [barrel_x], ax
 	jmp wait_for_key
+
+win:
+	push 0Fh
+	push 4240h
+	call DELAY
+	push 0h
+	call SetMode
+	push offset YouWin
+	call PrintString
+	push 0Fh
+	push 4240h
+	call DELAY
+	call WaitKey
 	;push 1	
 	;call SetMode
 	;push offset gameover_msg
@@ -2912,7 +2923,9 @@ _restart_game:
 exit:
 	push 0h
 	call SetMode
-	
+
+	call WaitKey
+
 	mov ax, 4c00h
 	int 21h
 END start
